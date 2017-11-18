@@ -5,6 +5,7 @@ from robotpy_ext.control.button_debouncer import ButtonDebouncer
 import math
 import numpy as np
 
+
 class Robot(wpilib.IterativeRobot):
     swerve_config = [
         ('swerve-backright', 4, 2),
@@ -32,9 +33,8 @@ class Robot(wpilib.IterativeRobot):
             self.navx = AHRS.create_spi()
             self.navx.reset()
         except Exception as e:
-            print("Caught exception while trying to initialize AHRS: " + e.args)
+            print("Caught exception while trying to initialize AHRS: "+e.args)
             self.navx = None
-
 
     def teleopPeriodic(self):
         ctrl = np.array([
@@ -42,7 +42,8 @@ class Robot(wpilib.IterativeRobot):
             self.control_stick.getAxis(1)
         ])
 
-        if self.navx is not None and self.navx.isConnected() and self.foc_enabled:
+        if (self.navx is not None and
+                self.navx.isConnected() and self.foc_enabled):
             # perform FOC coordinate transform
             hdg = self.navx.getFusedHeading() * (math.pi / 180)
 
@@ -67,6 +68,7 @@ class Robot(wpilib.IterativeRobot):
             self.foc_enabled = not self.foc_enabled
 
         self.drivetrain.update_smart_dashboard()
+
 
 if __name__ == "__main__":
     wpilib.run(Robot)

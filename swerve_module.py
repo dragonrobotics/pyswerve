@@ -2,15 +2,17 @@ from ctre.cantalon import CANTalon
 import wpilib
 import math
 
+
 class SwerveModule(object):
     """docstring for SwerveModule."""
     def __init__(self, name, steer_id, drive_id):
         self.steer_talon = CANTalon(steer_id)
         self.drive_talon = CANTalon(drive_id)
 
-        # Configure steering motors to use abs. encoders and closed-loop control
+        # Configure steering motors to use abs. encoders
+        # and closed-loop control
         self.steer_talon.changeControlMode(CANTalon.ControlMode.Position)
-        self.steer_talon.setFeedbackDevice(CANTalon.FeedbackDevice.AnalogEncoder)
+        self.steer_talon.setFeedbackDevice(CANTalon.FeedbackDevice.AnalogEncoder)  # noqa: E501
         self.steer_talon.setProfile(0)
 
         self.name = name
@@ -22,7 +24,8 @@ class SwerveModule(object):
         preferences = wpilib.Preferences.getInstance()
 
         self.steer_offset = preferences.getFloat(self.name+'-offset', 0)
-        self.drive_reversed = preferences.getBoolean(self.name+'-reversed', False)
+        self.drive_reversed = preferences.getBoolean(
+            self.name+'-reversed', False)
 
     def save_config_values(self):
         preferences = wpilib.Preferences.getInstance()
@@ -82,5 +85,6 @@ class SwerveModule(object):
         self.set_drive_speed(percent_speed)
 
     def update_smart_dashboard(self):
-        wpilib.SmartDashboard.putNumber(self.name+' Position', self.steer_talon.get())
+        wpilib.SmartDashboard.putNumber(
+            self.name+' Position', self.steer_talon.get())
         wpilib.SmartDashboard.putNumber(self.name+' Target', self.steer_target)

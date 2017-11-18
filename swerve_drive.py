@@ -1,8 +1,8 @@
 import wpilib
 import math
 import numpy as np
-
 from swerve_module import SwerveModule
+
 
 class SwerveDrive(object):
     """docstring for SwerveDrive."""
