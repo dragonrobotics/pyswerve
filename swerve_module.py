@@ -74,6 +74,9 @@ class SwerveModule(object):
         if should_reverse_drive:
             self.drive_reversed = not self.drive_reversed
 
+    def get_drive_speed(self):
+        return self.drive_talon.get()
+
     def set_drive_speed(self, percent_speed):
         if self.drive_reversed:
             percent_speed *= -1

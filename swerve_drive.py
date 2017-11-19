@@ -10,9 +10,7 @@ class SwerveDrive(object):
     # config_tuples is a list of tuples of the form (name, steer_id, drive_id)
     # where each value is passed to the SwerveModule constructor in that order
     def __init__(self, length, width, config_tuples):
-        self.modules = []
-        for config in config_tuples:
-            self.modules.append(SwerveModule(*config))
+        self.modules = [SwerveModule(*config) for config in config_tuples]
 
         self.length = length
         self.width = width
@@ -43,6 +41,12 @@ class SwerveDrive(object):
     def save_config_values(self):
         for module in self.modules:
             module.save_config_values()
+
+    def get_module_angles(self):
+        return np.array([module.get_steer_angle() for module in self.modules])
+
+    def get_module_speeds(self):
+        return np.array([module.get_drive_speed() for module in self.modules])
 
     def update_smart_dashboard(self):
         if self.sd_update_timer.hasPeriodPassed(0.25):
