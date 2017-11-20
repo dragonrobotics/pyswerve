@@ -29,3 +29,17 @@ def update(
     new_covar = (np.identity(gain.shape[0]) - (gain @ model)) @ current_covar
 
     return new_state, new_covar
+
+
+def ekf_update(
+        state, covar,
+        measurement, measurement_model, linear_model,
+        noise):
+    res = measurement - measurement_model(state)
+    res_covar = (linear_model @ covar @ linear_model.transpose()) + noise
+    gain = (covar @ linear_model.transpose() @ np.linalg.inv(res_covar))
+
+    new_state = state + (gain @ res)
+    new_covar = (np.identity(gain.shape[0]) - (gain @ linear_model)) @ covar
+
+    return new_state, new_covar
