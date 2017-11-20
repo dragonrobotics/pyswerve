@@ -70,10 +70,11 @@ def linearized_swerve_encoder_model(
         front-right speed,
         front-left speed]
     """
+    
     # Get velocity components from robot pose
-    vx = robot_pose[3]
-    vy = robot_pose[4]
-    rcw = robot_pose[5]
+    vx = np.squeeze(robot_pose[3])
+    vy = np.squeeze(robot_pose[4])
+    rcw = np.squeeze(robot_pose[5])
 
     radius = math.sqrt((chassis_length ** 2) + (chassis_width ** 2))
 
@@ -124,9 +125,9 @@ def swerve_encoder_model(chassis_width, chassis_length, robot_pose):
     rel_len = chassis_length / radius
     rel_wid = chassis_width / radius
 
-    vx = robot_pose[3]
-    vy = robot_pose[4]
-    rcw = robot_pose[5]
+    vx = np.squeeze(robot_pose[3])
+    vy = np.squeeze(robot_pose[4])
+    rcw = np.squeeze(robot_pose[5])
 
     a = (vy - rcw) * rel_len
     b = (vy + rcw) * rel_len
@@ -139,7 +140,7 @@ def swerve_encoder_model(chassis_width, chassis_length, robot_pose):
     speeds = np.sqrt((t1 ** 2) + (t2 ** 2))
     angles = np.arctan2(t1, t2)
 
-    return np.concatenate((speeds, angles))
+    return np.expand_dims(np.concatenate((speeds, angles)), axis=1)
 
 
 class PositionFilter(object):
@@ -157,6 +158,12 @@ class PositionFilter(object):
         self.length = chassis_length
         self.last_predict_time = wpilib.Timer.getFPGATimestamp()
 
+    def get_position(self):
+        return self.pose[0], self.pose[1]
+
+    def get_heading(self):
+        return self.pose[2]
+
     def predict(self, movement_covariance):
         dt = wpilib.Timer.getFPGATimestamp() - self.last_predict_time
         self.last_predict_time = wpilib.Timer.getFPGATimestamp()
@@ -167,16 +174,17 @@ class PositionFilter(object):
             self.pose, self.covar,
             transition_matrix, movement_covariance)
 
-    def swerve_encoder_update(self, angle_variance, speed_variance, drive):
+    def swerve_encoder_update(
+            self,
+            angle_variance, speed_variance,
+            module_angles, module_speeds):
         measurement_covar = np.zeros([8, 8])
         for i in range(0, 4):
             measurement_covar[i][i] = angle_variance
         for i in range(4, 8):
             measurement_covar[i][i] = speed_variance
 
-        measurement_vector = np.concatenate((
-            drive.get_module_angles(), drive.get_module_speeds()
-        ))
+        measurement_vector = np.concatenate((module_angles, module_speeds))
 
         linear_model = linearized_swerve_encoder_model(
             self.width, self.length, self.pose)
@@ -190,13 +198,13 @@ class PositionFilter(object):
     def ahrs_gyro_update(self, ahrs):
         # Model picks out gyro angle and rate (shape = [2, 9])
         model = np.array([
-            [0, 0, 1, 0, 0, 0, 0, 0, 0]
+            [0, 0, 1, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 1, 0, 0, 0]
         ])
 
         measurement = np.array([
-            ahrs.getYaw(),
-            ahrs.getRate()
+            [ahrs.getYaw()],
+            [ahrs.getRate()]
         ])
 
         # According to KauaiLabs, the NavX exhibits yaw drift of about
@@ -227,13 +235,13 @@ class PositionFilter(object):
         # shape = [2, 9]
         model = np.array([
             [0, 0, 0, 0, 0, 0, 1, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1, 0]
         ])
 
         # NOTE: double check to see if these are actually field-centric
         measurement = np.array([
-            ahrs.getWorldLinearAccelX(),
-            ahrs.getWorldLinearAccelY(),
+            [ahrs.getWorldLinearAccelX()],
+            [ahrs.getWorldLinearAccelY()],
         ])
 
         # The AHRS accelerometers have a range of +/- 2g with a resolution
@@ -242,9 +250,9 @@ class PositionFilter(object):
         # https://www.invensense.com/wp-content/uploads/2015/02/PS-MPU-9250A-01-v1.1.pdf  # noqa: E501
         # Total RMS noise = 8 milligravities-RMS (0.008g-rms)
 
-        accel_variance = ((0.008 * 9.8) ** 2)
+        accel_variance = ((0.008 * 9.81) ** 2)
 
-        measurement *= 9.8  # AHRS returns accelerations in units of g
+        measurement *= 9.81  # AHRS returns accelerations in units of g
 
         self.pose, self.covar = kalman_filter.update(
             self.pose, self.covar,

@@ -15,6 +15,8 @@ class SwerveModule(object):
         self.steer_talon.setFeedbackDevice(CANTalon.FeedbackDevice.AnalogEncoder)  # noqa: E501
         self.steer_talon.setProfile(0)
 
+        self.drive_talon.setFeedbackDevice(CANTalon.FeedbackDevice.QuadEncoder)
+
         self.name = name
         self.steer_target = 0
 
@@ -34,6 +36,7 @@ class SwerveModule(object):
         preferences.putBoolean(self.name+'-reversed', self.drive_reversed)
 
     def get_steer_angle(self):
+        """Get module steering angle in radians."""
         native_units = self.steer_talon.get()
         return (native_units - self.steer_offset) * math.pi / 512
 
@@ -75,7 +78,8 @@ class SwerveModule(object):
             self.drive_reversed = not self.drive_reversed
 
     def get_drive_speed(self):
-        return self.drive_talon.get()
+        """Get drive wheel speed in sensor ticks per second."""
+        return self.drive_talon.get() * 10
 
     def set_drive_speed(self, percent_speed):
         if self.drive_reversed:

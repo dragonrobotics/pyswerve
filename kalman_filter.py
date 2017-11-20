@@ -21,6 +21,9 @@ def predict(
 def update(
         current_state, current_covar,
         measurement, model, noise):
+    if measurement.ndim == 1:
+        measurement = np.expand_dims(measurement, axis=1)
+
     res = measurement - (model @ current_state)
     res_covar = (model @ current_covar @ model.transpose()) + noise
     gain = (current_covar @ model.transpose() @ np.linalg.inv(res_covar))
@@ -35,6 +38,9 @@ def ekf_update(
         state, covar,
         measurement, measurement_model, linear_model,
         noise):
+    if measurement.ndim == 1:
+        measurement = np.expand_dims(measurement, axis=1)
+
     res = measurement - measurement_model(state)
     res_covar = (linear_model @ covar @ linear_model.transpose()) + noise
     gain = (covar @ linear_model.transpose() @ np.linalg.inv(res_covar))

@@ -16,9 +16,6 @@ class SwerveDrive(object):
         self.width = width
         self.radius = math.sqrt((length ** 2) + (width ** 2))
 
-        self.sd_update_timer = wpilib.Timer()
-        self.sd_update_timer.start()
-
     def drive(self, forward, strafe, rotate_cw):
         a = (strafe - rotate_cw) * (self.length / self.radius)
         b = (strafe + rotate_cw) * (self.length / self.radius)
@@ -49,6 +46,5 @@ class SwerveDrive(object):
         return np.array([module.get_drive_speed() for module in self.modules])
 
     def update_smart_dashboard(self):
-        if self.sd_update_timer.hasPeriodPassed(0.25):
-            for module in self.modules:
-                module.update_smart_dashboard()
+        for module in self.modules:
+            module.update_smart_dashboard()
