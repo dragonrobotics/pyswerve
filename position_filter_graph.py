@@ -5,15 +5,6 @@ import matplotlib.pyplot as plt
 import position_filtering
 
 
-def gyro_noisy(pose, running_time):
-    return normal(pose[2], running_time * (math.pi / 180) / 120)
-
-def gyro_rate_noisy(pose):
-    return normal(pose[5], 0.1 * (math.pi / 180))
-
-def accelerometer_noisy(pose):
-    return normal([pose[6] / 9.81, pose[7]  / 9.81], 0.008 * 9.81)
-
 angle_sigma = 0.045056
 speed_sigma = 0.1
 movement_sigma = 0.1
@@ -24,16 +15,30 @@ chassis_width = 22.61
 dt = 0.1
 t = 0
 
+
 real_pose = np.expand_dims(np.array([0, 0, 0, 0, 0, 0, 5, 5, math.pi / 6]), 1)
 pos_filter = position_filtering.PositionFilter(chassis_width, chassis_length)
-#pos_filter.pose = real_pose
+# pos_filter.pose = real_pose
+
+
+def gyro_noisy(pose, running_time):
+    return normal(pose[2], running_time * (math.pi / 180) / 120)
+
+
+def gyro_rate_noisy(pose):
+    return normal(pose[5], 0.1 * (math.pi / 180))
+
+
+def accelerometer_noisy(pose):
+    return normal([pose[6] / 9.81, pose[7] / 9.81], 0.008 * 9.81)
 
 
 def timestep_update():
-    d = position_filtering.swerve_encoder_model(chassis_width, chassis_length, real_pose)
-    assert d.shape == (8,1)
+    d = position_filtering.swerve_encoder_model(
+        chassis_width, chassis_length, real_pose)
+    assert d.shape == (8, 1)
 
-    d = np.reshape(normal(d, [[[angle_sigma]]*4 + [[speed_sigma]]*4]), (8,1))
+    d = np.reshape(normal(d, [[[angle_sigma]]*4 + [[speed_sigma]]*4]), (8, 1))
 
     pos_filter.swerve_encoder_update(
         angle_sigma ** 2, speed_sigma ** 2,
@@ -46,6 +51,7 @@ def timestep_update():
 
     pos_filter.ahrs_accelerometer_update(None, accelerometer_noisy(real_pose))
 
+
 def timestep_predict():
     global real_pose, t
     transition_matrix = position_filtering.state_transition(dt)
@@ -54,6 +60,7 @@ def timestep_predict():
     t += dt
 
     pos_filter.predict(movement_covariance, dt)
+
 
 ts = []
 
@@ -81,7 +88,6 @@ for step in range(int(15 / dt)):
     accelero = accelerometer_noisy(real_pose)
     accelero_x.append(accelero[0][0])
     accelero_y.append(accelero[1][0])
-
 
     real_xs.append(real_pose[0][0])
     real_ys.append(real_pose[1][0])

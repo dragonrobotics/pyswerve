@@ -120,7 +120,7 @@ def linearized_swerve_encoder_model(
 
     if np.isnan(np.sum(retn)):
         # Don't break the filter
-        return np.zeros([8,9])
+        return np.zeros([8, 9])
 
     return retn
 
@@ -196,8 +196,7 @@ class PositionFilter(object):
         else:
             measurement_vector = measurement
 
-
-        assert measurement_vector.shape == (8,1)
+        # assert measurement_vector.shape == (8, 1)
 
         linear_model = linearized_swerve_encoder_model(
             self.width, self.length, self.pose)
@@ -221,8 +220,7 @@ class PositionFilter(object):
                 [ahrs.getRate()]
             ])
 
-
-        assert measurement.shape == (2,1)
+        # assert measurement.shape == (2, 1)
 
         # According to KauaiLabs, the NavX exhibits yaw drift of about
         # 1 degree per minute.
@@ -262,7 +260,7 @@ class PositionFilter(object):
                 [ahrs.getWorldLinearAccelY()],
             ])
 
-        assert measurement.shape == (2,1)
+        # assert measurement.shape == (2, 1)
 
         # The AHRS accelerometers have a range of +/- 2g with a resolution
         # of 16 bits.
