@@ -114,9 +114,15 @@ def linearized_swerve_encoder_model(
     dot_derivs = np.stack((dvx, dvy, d_rcw), axis=-1)
 
     # Fill in other entries with zero
-    return np.concatenate(
+    retn = np.concatenate(
         (np.zeros([8, 3]), dot_derivs, np.zeros([8, 3])),
         axis=1)
+
+    if np.isnan(np.sum(retn)):
+        # Don't break the filter
+        return np.zeros([8,9])
+
+    return retn
 
 
 def swerve_encoder_model(chassis_width, chassis_length, robot_pose):
@@ -140,7 +146,7 @@ def swerve_encoder_model(chassis_width, chassis_length, robot_pose):
     speeds = np.sqrt((t1 ** 2) + (t2 ** 2))
     angles = np.arctan2(t1, t2)
 
-    return np.expand_dims(np.concatenate((speeds, angles)), axis=1)
+    return np.expand_dims(np.concatenate((angles, speeds)), axis=1)
 
 
 class PositionFilter(object):
@@ -164,9 +170,10 @@ class PositionFilter(object):
     def get_heading(self):
         return self.pose[2]
 
-    def predict(self, movement_covariance):
-        dt = wpilib.Timer.getFPGATimestamp() - self.last_predict_time
-        self.last_predict_time = wpilib.Timer.getFPGATimestamp()
+    def predict(self, movement_covariance, dt):
+        if dt is None:
+            dt = wpilib.Timer.getFPGATimestamp() - self.last_predict_time
+            self.last_predict_time = wpilib.Timer.getFPGATimestamp()
 
         transition_matrix = state_transition(dt)
 
@@ -177,14 +184,20 @@ class PositionFilter(object):
     def swerve_encoder_update(
             self,
             angle_variance, speed_variance,
-            module_angles, module_speeds):
+            module_angles, module_speeds, measurement=None):
         measurement_covar = np.zeros([8, 8])
         for i in range(0, 4):
             measurement_covar[i][i] = angle_variance
         for i in range(4, 8):
             measurement_covar[i][i] = speed_variance
 
-        measurement_vector = np.concatenate((module_angles, module_speeds))
+        if measurement is None:
+            measurement_vector = np.concatenate((module_angles, module_speeds))
+        else:
+            measurement_vector = measurement
+
+
+        assert measurement_vector.shape == (8,1)
 
         linear_model = linearized_swerve_encoder_model(
             self.width, self.length, self.pose)
@@ -195,17 +208,21 @@ class PositionFilter(object):
             lambda p: swerve_encoder_model(self.width, self.length, p),
             linear_model, measurement_covar)
 
-    def ahrs_gyro_update(self, ahrs):
+    def ahrs_gyro_update(self, ahrs, measurement=None):
         # Model picks out gyro angle and rate (shape = [2, 9])
         model = np.array([
             [0, 0, 1, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 1, 0, 0, 0]
         ])
 
-        measurement = np.array([
-            [ahrs.getYaw()],
-            [ahrs.getRate()]
-        ])
+        if measurement is None:
+            measurement = np.array([
+                [ahrs.getYaw()],
+                [ahrs.getRate()]
+            ])
+
+
+        assert measurement.shape == (2,1)
 
         # According to KauaiLabs, the NavX exhibits yaw drift of about
         # 1 degree per minute.
@@ -230,7 +247,7 @@ class PositionFilter(object):
             self.pose, self.covar,
             measurement, model, covariance)
 
-    def ahrs_accelerometer_update(self, ahrs):
+    def ahrs_accelerometer_update(self, ahrs, measurement=None):
         # Model simply picks the two linear acceleration components in order
         # shape = [2, 9]
         model = np.array([
@@ -239,10 +256,13 @@ class PositionFilter(object):
         ])
 
         # NOTE: double check to see if these are actually field-centric
-        measurement = np.array([
-            [ahrs.getWorldLinearAccelX()],
-            [ahrs.getWorldLinearAccelY()],
-        ])
+        if measurement is None:
+            measurement = np.array([
+                [ahrs.getWorldLinearAccelX()],
+                [ahrs.getWorldLinearAccelY()],
+            ])
+
+        assert measurement.shape == (2,1)
 
         # The AHRS accelerometers have a range of +/- 2g with a resolution
         # of 16 bits.
