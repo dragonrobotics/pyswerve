@@ -1,4 +1,3 @@
-import wpilib
 import math
 import numpy as np
 from swerve_module import SwerveModule

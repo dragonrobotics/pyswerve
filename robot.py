@@ -49,8 +49,6 @@ class Robot(wpilib.IterativeRobot):
             self.chassis_length
         )
 
-
-
     def teleopPeriodic(self):
         ctrl = np.array([
             self.control_stick.getAxis(0),

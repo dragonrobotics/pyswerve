@@ -70,7 +70,7 @@ def linearized_swerve_encoder_model(
         front-right speed,
         front-left speed]
     """
-    
+
     # Get velocity components from robot pose
     vx = np.squeeze(robot_pose[3])
     vy = np.squeeze(robot_pose[4])
