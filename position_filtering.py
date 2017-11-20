@@ -170,7 +170,7 @@ class PositionFilter(object):
     def get_heading(self):
         return self.pose[2]
 
-    def predict(self, movement_covariance, dt):
+    def predict(self, movement_covariance, dt=None):
         if dt is None:
             dt = wpilib.Timer.getFPGATimestamp() - self.last_predict_time
             self.last_predict_time = wpilib.Timer.getFPGATimestamp()
