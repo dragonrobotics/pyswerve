@@ -1,0 +1,197 @@
+"""Python implementation of the Pure Pursuit controller.
+"""
+
+import numpy as np
+import math
+
+
+def extract_location(robot_pose):
+    return np.array([robot_pose[0][0], robot_pose[1][0]])
+
+
+def angle_between(v1, v2):
+    return np.arccos(np.sum(v1*v2) / np.sqrt(np.sum(v1**2) * np.sum(v2**2)))
+
+
+def segment_is_relevant(robot_loc, node_list, i):
+    segment = node_list[i+1] - node_list[i]
+    next_segment = node_list[i+2] - node_list[i+1]
+
+    q1 = robot_loc - node_list[i]
+    q2 = node_list[i+1] - robot_loc
+
+    a1 = angle_between(segment, q1)
+    a2 = angle_between(segment, q2)
+    theta = angle_between(segment, next_segment)
+    beta = theta / 2
+
+    if np.abs(a1) <= (math.pi / 2):
+        if (a2 <= 0 and beta > 0) or (a2 >= 0 and beta < 0):
+            return np.abs(a2) < np.abs(beta)  # Case I
+        elif np.abs(a2) <= (math.pi / 2):
+            return True  # Case II
+        elif np.abs(a2) - np.abs(theta) - (math.pi / 2) < 0:
+            return True  # Case III
+        else:
+            return False  # Case II
+    else:
+        return i == 0 #  Case IV
+
+
+# i == currently relevant segment / node index
+def projected_location(robot_loc, node_list, i):
+    segment = node_list[i+1] - node_list[i]
+    next_segment = node_list[i+2] - node_list[i+1]
+
+    q1 = robot_loc - node_list[i]
+    q2 = node_list[i+1] - robot_loc
+
+    a2 = angle_between(segment, q2)
+    theta = angle_between(segment, next_segment)
+    beta = theta / 2
+
+    if (
+        not ((a2 <= 0 and beta > 0) and (a2 >= 0 and beta < 0))
+        and np.abs(a2) > (math.pi / 2)
+        and np.abs(a2) - np.abs(theta) - (math.pi / 2) < 0
+    ):
+        return node_list[i+1]  # dead zone; select corner point as position
+
+    magn_i = np.sqrt(np.sum(node_list[i]**2))
+    magn_q1 = np.sqrt(np.sum(q1**2))
+    cos_a1 = np.sum(segment*q1) / np.sqrt(np.sum(segment**2) * np.sum(q1**2))
+
+    return node_list[i] + (node_list[i] * (magn_q1 * cos_a1 / magn_i))
+
+
+def cross_track_error(robot_loc, node_list, i):
+    segment = node_list[i+1] - node_list[i]
+    q1 = robot_loc - node_list[i]
+    a1 = angle_between(segment, q1)
+
+    return -np.sqrt(np.sum(q1 ** 2)) * np.sin(a1)
+
+
+# Runs whenever a new path is sent to the controller.
+# Returns an index to initialize all other searches from.
+def presearch(robot_loc, node_list):
+    # find relevant segment with least cross-track error
+    relevant_segments = [
+        (i, cross_track_error(node)) for i, node in enumerate(node_list)
+        if segment_is_relevant(robot_loc, node_list, i)]
+
+    smallest_err = relevant_segments[0]
+    for segment in relevant_segments:
+        if segment[1] < smallest_err[1]:
+            smallest_err = segment
+
+    return smallest_err[0]
+
+
+def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
+    # Find first relevant segment:
+    for i in range(search_start_idx, len(node_list)):
+        if segment_is_relevant(robot_loc, node_list, i):
+            relevant_segment = i
+            break
+
+    if relevant_segment is None:
+        # Extend last segment to infinity if necessary
+        segment = node_list[len(node_list) - 1] - node_list[len(node_list) - 2]
+        q2 = node_list[len(node_list) - 1] - robot_loc
+        a2 = angle_between(segment, q2)
+
+        if search_start_idx == len(node_list) - 1 and np.abs(a2) > math.pi / 2:
+            relevant_segment = search_start_idx
+
+    projected_pos = projected_location(robot_loc, node_list, relevant_segment)
+    x_track_err = cross_track_error(robot_loc, node_list, relevant_segment)
+
+    if relevant_segment == 0:
+        q1 = robot_loc - node_list[0]
+        q2 = node_list[1] - robot_loc
+
+        a1 = angle_between(segment, q1)
+
+        if (
+            np.sqrt(np.sum(q1 ** 2)) > lookahead_dist
+            and np.sqrt(np.sum(q2 ** 2)) > lookahead_dist
+        ):
+            return node_list[0]  # 1st node outside virtual circle
+
+    for i in range(relevant_segment, len(node_list)):
+        segment = node_list[i+1] - node_list[i]
+
+        q1 = robot_loc - node_list[i]
+        q2 = node_list[i+1] - robot_loc
+
+        magn_q1 = np.sqrt(np.sum(q1 ** 2))
+        magn_q2 = np.sqrt(np.sum(q2 ** 2))
+        segment_len = np.sqrt(np.sum(segment ** 2))
+
+        a1 = angle_between(segment, q1)
+        a2 = angle_between(segment, q2)
+
+        if magn_q1 < lookahead_dist and magn_q2 > lookahead_dist:
+            # common case
+            cos_y = (
+                (np.sum(q2 ** 2) - np.sum(q1 ** 2) - np.sum(segment ** 2))
+                / (-2 * segment_len * magn_q1)
+            )
+
+            p = (magn_q1 * cos_y) + np.sqrt(
+                (np.sum(q1 ** 2) * (cos_y ** 2)) + (lookahead_dist ** 2))
+
+            return (
+                node_list[i] + (p * segment / segment_len),
+                relevant_segment
+            )
+        elif (
+            i == relevant_segment
+            and magn_q1 > lookahead_dist
+            and magn_q2 > lookahead_dist
+        ):
+            if x_track_err <= lookahead_dist:
+                # 2 intersection points
+                p = np.sqrt((lookahead_dist ** 2) - (x_track_err ** 2))
+                return (
+                    node_list[i] + (p * segment / segment_len),
+                    relevant_segment
+                )
+            else:
+                # no intersection points case and/or dead zone case
+                Dap = np.sqrt(np.sum((projected_pos - node_list[i]) ** 2))
+                return (
+                    node_list[i] + (Dap * (node_list[i] / segment_len)),
+                    relevant_segment
+                )
+        # else go to next segment
+
+
+class PurePursuitController(object):
+    """Keeps state for a Pure Pursuit Controller."""
+    node_list = []
+    search_start_index = 0
+
+    def __init__(self, lookahead_dist):
+        self.lookahead_dist = lookahead_dist
+
+    def get_goal_point(self, robot_pose):
+        goal_point, self.search_start_index = find_goal_point(
+            extract_location(robot_pose),
+            self.lookahead_dist,
+            self.node_list,
+            self.search_start_index
+        )
+
+        return goal_point
+
+    def set_path(self, new_path, robot_pose):
+        """Sets a new path for the controller.
+
+        new_path should be a list of rank-1 ndarrays (shape (2,)).
+        robot_pose is the current robot pose as a 9-element vector.
+        """
+        robot_loc = extract_location(robot_pose)
+        self.node_list = new_path
+        self.search_start_index = presearch(robot_loc, new_path)
