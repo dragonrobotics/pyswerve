@@ -5,26 +5,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pure_pursuit
 
+
 # Print stack trace on warning
 def warn_with_traceback(
         message, category, filename, lineno, file=None, line=None):
-    log = file if hasattr(file,'write') else sys.stderr
+    log = file if hasattr(file, 'write') else sys.stderr
     traceback.print_stack(file=log)
-    log.write(warnings.formatwarning(message, category, filename, lineno, line))
+    log.write(warnings.formatwarning(message, category, filename, lineno, line))  # noqa: E501
     log.write('\n')
+
 
 warnings.showwarning = warn_with_traceback
 
 robot_pose = np.array([[0], [0]], dtype=np.float64)
 lookahead_dist = 0.25
 waypoints = [
-    np.array([0, 0], dtype=np.float64),
-    np.array([1, 0], dtype=np.float64),
     np.array([1, 1], dtype=np.float64),
-    np.array([2, 1], dtype=np.float64),
     np.array([2, 0], dtype=np.float64),
-    np.array([3, 0], dtype=np.float64),
-    np.array([3, 1], dtype=np.float64),
+    np.array([4, 2], dtype=np.float64),
+    np.array([5, 1], dtype=np.float64),
+    np.array([4, 0], dtype=np.float64),
+    np.array([2, 2], dtype=np.float64),
+    np.array([0.5, 1], dtype=np.float64)
 ]
 
 for i, pt in enumerate(waypoints):

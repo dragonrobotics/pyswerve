@@ -7,12 +7,13 @@ import numpy as np
 
 machine_eps = np.finfo(np.float64).eps
 
+
 def extract_location(robot_pose):
     return np.array([robot_pose[0][0], robot_pose[1][0]])
 
 
 def angle_between(v1, v2):
-    magn_prod = np.sum(v1**2) * np.sum(v2**2)  #  |v1|**2 * |v2|**2
+    magn_prod = np.sum(v1**2) * np.sum(v2**2)  # |v1|**2 * |v2|**2
     if magn_prod <= machine_eps:
         # somewhat arbitrary and hackish, but to keep things rom breaking
         # just return zero when taking angles involving zero vectors.
@@ -131,7 +132,6 @@ def presearch(robot_loc, node_list):
             "No relevant path segments found in presearch",
             RuntimeWarning)
         return 0
-        #raise RuntimeError("No relevant path segments found!")
 
     smallest_err = relevant_segments[0]
     for segment in relevant_segments:
@@ -277,8 +277,6 @@ class PurePursuitController(object):
         if self.search_start_index == len(self.node_list) - 2:
             segment = self.node_list[-1] - self.node_list[-2]
             q2 = self.node_list[-1] - robot_loc
-
-            magn_q2 = np.sqrt(np.sum(q2 ** 2))
             a2 = angle_between(segment, q2)
 
             if a2 >= (math.pi / 2):
