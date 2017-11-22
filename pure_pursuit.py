@@ -26,8 +26,12 @@ def segment_is_relevant(robot_loc, node_list, i):
     beta = theta / 2
 
     if np.abs(a1) <= (math.pi / 2):
-        if (a2 <= 0 and beta > 0) or (a2 >= 0 and beta < 0):
-            return np.abs(a2) < np.abs(beta)  # Case I
+        # bit of a hack here with case I
+        # sometimes the angle gets NEAR zero but never actually goes negative
+        # so we add some tolerance here to allow for actual inside-turn nav.
+        # (hence the <= 1 and >= -1 checks instead of <= 0 and >= 0)
+        if (a2 <= 1 and beta > 0) or (a2 >= -1 and beta < 0):
+            return np.abs(a2) <= np.abs(beta)  # Case I
         elif np.abs(a2) <= (math.pi / 2):
             return True  # Case II
         elif np.abs(a2) - np.abs(theta) - (math.pi / 2) < 0:
@@ -41,35 +45,49 @@ def segment_is_relevant(robot_loc, node_list, i):
 # i == currently relevant segment / node index
 def projected_location(robot_loc, node_list, i):
     segment = node_list[i+1] - node_list[i]
-    next_segment = node_list[i+2] - node_list[i+1]
 
     q1 = robot_loc - node_list[i]
     q2 = node_list[i+1] - robot_loc
 
-    a2 = angle_between(segment, q2)
-    theta = angle_between(segment, next_segment)
-    beta = theta / 2
+    if i < len(node_list) - 2:
+        a2 = angle_between(segment, q2)
+        next_segment = node_list[i+2] - node_list[i+1]
+        theta = angle_between(segment, next_segment)
+        beta = theta / 2
 
-    if (
-        not ((a2 <= 0 and beta > 0) and (a2 >= 0 and beta < 0))
-        and np.abs(a2) > (math.pi / 2)
-        and np.abs(a2) - np.abs(theta) - (math.pi / 2) < 0
-    ):
-        return node_list[i+1]  # dead zone; select corner point as position
+        if (
+            not ((a2 <= 0 and beta > 0) or (a2 >= 0 and beta < 0))
+            and np.abs(a2) > (math.pi / 2)
+            and np.abs(a2) - np.abs(theta) - (math.pi / 2) < 0
+        ):
+            return node_list[i+1]  # dead zone; select corner point as position
 
-    magn_i = np.sqrt(np.sum(node_list[i]**2))
-    magn_q1 = np.sqrt(np.sum(q1**2))
-    cos_a1 = np.sum(segment*q1) / np.sqrt(np.sum(segment**2) * np.sum(q1**2))
-
-    return node_list[i] + (node_list[i] * (magn_q1 * cos_a1 / magn_i))
+    t = np.sum(q1 * segment) / np.sum(segment * segment)
+    return node_list[i] + (t * segment)
 
 
 def cross_track_error(robot_loc, node_list, i):
     segment = node_list[i+1] - node_list[i]
+
+    if i < len(node_list) - 2:
+        q2 = node_list[i+1] - robot_loc
+        a2 = angle_between(segment, q2)
+        next_segment = node_list[i+2] - node_list[i+1]
+        theta = angle_between(segment, next_segment)
+        beta = theta / 2
+
+        if (
+            not ((a2 <= 0 and beta > 0) or (a2 >= 0 and beta < 0))
+            and np.abs(a2) > (math.pi / 2)
+            and np.abs(a2) - np.abs(theta) - (math.pi / 2) < 0
+        ):
+            # dead zone case
+            return np.sqrt(np.sum((robot_loc - node_list[i+1])**2))
+
     q1 = robot_loc - node_list[i]
     a1 = angle_between(segment, q1)
 
-    return -np.sqrt(np.sum(q1 ** 2)) * np.sin(a1)
+    return np.abs(-np.sqrt(np.sum(q1 ** 2)) * np.sin(a1))
 
 
 # Runs whenever a new path is sent to the controller.
@@ -77,9 +95,10 @@ def cross_track_error(robot_loc, node_list, i):
 def presearch(robot_loc, node_list):
     # find relevant segment with least cross-track error
     relevant_segments = [
-        (i, cross_track_error(node)) for i, node in enumerate(node_list)
+        (i, cross_track_error(robot_loc, node_list, i))
+        for i, node in enumerate(node_list)
         if (
-            i < len(node_list) - 1
+            i < len(node_list) - 2
             and segment_is_relevant(robot_loc, node_list, i)
         )]
 
@@ -93,13 +112,13 @@ def presearch(robot_loc, node_list):
 
 def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
     # Find first relevant segment:
-    for i in range(search_start_idx, len(node_list)-1):
+    relevant_segment = None
+    for i in range(search_start_idx, len(node_list)-2):
         if segment_is_relevant(robot_loc, node_list, i):
             relevant_segment = i
             break
 
     if relevant_segment is None:
-        # Extend last segment to infinity if necessary
         relevant_segment = len(node_list) - 2
 
     projected_pos = projected_location(robot_loc, node_list, relevant_segment)
@@ -109,14 +128,16 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
         segment = node_list[1] - node_list[0]
         q1 = robot_loc - node_list[0]
         q2 = node_list[1] - robot_loc
+        a1 = angle_between(segment, q1)
 
         if (
-            np.sqrt(np.sum(q1 ** 2)) > lookahead_dist
-            and np.sqrt(np.sum(q2 ** 2)) > lookahead_dist
+            np.sqrt(np.sum(q1 ** 2)) >= lookahead_dist
+            and np.sqrt(np.sum(q2 ** 2)) >= lookahead_dist
+            and np.abs(a1) > (math.pi / 2)
         ):
-            return node_list[0]  # 1st node outside virtual circle
+            return (node_list[0], 0)  # 1st node outside virtual circle
 
-    for i in range(relevant_segment, len(node_list)):
+    for i in range(relevant_segment, len(node_list)-1):
         segment = node_list[i+1] - node_list[i]
 
         q1 = robot_loc - node_list[i]
@@ -126,7 +147,7 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
         magn_q2 = np.sqrt(np.sum(q2 ** 2))
         segment_len = np.sqrt(np.sum(segment ** 2))
 
-        if magn_q1 < lookahead_dist and magn_q2 > lookahead_dist:
+        if magn_q1 <= lookahead_dist and magn_q2 >= lookahead_dist:
             # common case
             cos_y = (
                 (np.sum(q2 ** 2) - np.sum(q1 ** 2) - np.sum(segment ** 2))
@@ -134,32 +155,68 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
             )
 
             p = (magn_q1 * cos_y) + np.sqrt(
-                (np.sum(q1 ** 2) * (cos_y ** 2)) + (lookahead_dist ** 2))
+                (np.sum(q1 ** 2) * ((cos_y ** 2) - 1)) + (lookahead_dist ** 2))
 
-            return (
+            goal_tuple = (
                 node_list[i] + (p * segment / segment_len),
                 relevant_segment
             )
+            return goal_tuple
         elif (
             i == relevant_segment
-            and magn_q1 > lookahead_dist
-            and magn_q2 > lookahead_dist
+            and magn_q1 >= lookahead_dist
+            and magn_q2 >= lookahead_dist
         ):
-            if x_track_err <= lookahead_dist:
+            if x_track_err < lookahead_dist:
                 # 2 intersection points
                 p = np.sqrt((lookahead_dist ** 2) - (x_track_err ** 2))
-                return (
-                    node_list[i] + (p * segment / segment_len),
+                goal_tuple = (
+                    projected_pos + segment*(p / segment_len),
                     relevant_segment
                 )
+
+                return goal_tuple
             else:
                 # no intersection points case and/or dead zone case
-                Dap = np.sqrt(np.sum((projected_pos - node_list[i]) ** 2))
-                return (
-                    node_list[i] + (Dap * (node_list[i] / segment_len)),
-                    relevant_segment
+                # find closest point on path
+                current_xerr = x_track_err
+                selected_node = i
+                for i2 in range(search_start_idx, len(node_list)-2):
+                    if segment_is_relevant(robot_loc, node_list, i2):
+                        xerr = cross_track_error(
+                            robot_loc, node_list, i2)
+                        if xerr < current_xerr:
+                            selected_node = i2
+                            current_xerr = xerr
+
+                p2 = projected_pos = projected_location(
+                    robot_loc, node_list, selected_node)
+
+                goal_tuple = (
+                    p2,
+                    selected_node
                 )
+                return goal_tuple
         # else go to next segment
+
+    if relevant_segment == len(node_list) - 2:
+        # Extend last segment to infinity if necessary
+        segment = node_list[len(node_list) - 1] - node_list[len(node_list) - 2]
+        segment_len = np.sqrt(np.sum(segment ** 2))
+
+        q2 = node_list[len(node_list)-1] - robot_loc
+        magn_q2 = np.sqrt(np.sum(q2 ** 2))
+        eps = cross_track_error(robot_loc, node_list, len(node_list) - 2)
+
+        if magn_q2 < lookahead_dist:
+            p = np.sqrt((lookahead_dist ** 2) - (eps ** 2))
+            goal_tuple = (
+                projected_pos + (p * segment / segment_len),
+                len(node_list)-2
+            )
+            return goal_tuple
+
+    raise RuntimeError("Could not find goal point?")
 
 
 class PurePursuitController(object):
