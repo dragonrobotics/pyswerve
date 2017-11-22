@@ -35,7 +35,7 @@ def segment_is_relevant(robot_loc, node_list, i):
         else:
             return False  # Case II
     else:
-        return i == 0 #  Case IV
+        return i == 0  # Case IV
 
 
 # i == currently relevant segment / node index
@@ -106,10 +106,9 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
     x_track_err = cross_track_error(robot_loc, node_list, relevant_segment)
 
     if relevant_segment == 0:
+        segment = node_list[1] - node_list[0]
         q1 = robot_loc - node_list[0]
         q2 = node_list[1] - robot_loc
-
-        a1 = angle_between(segment, q1)
 
         if (
             np.sqrt(np.sum(q1 ** 2)) > lookahead_dist
@@ -126,9 +125,6 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
         magn_q1 = np.sqrt(np.sum(q1 ** 2))
         magn_q2 = np.sqrt(np.sum(q2 ** 2))
         segment_len = np.sqrt(np.sum(segment ** 2))
-
-        a1 = angle_between(segment, q1)
-        a2 = angle_between(segment, q2)
 
         if magn_q1 < lookahead_dist and magn_q2 > lookahead_dist:
             # common case
