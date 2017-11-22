@@ -1,16 +1,30 @@
+import traceback
+import warnings
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import pure_pursuit
 
+# Print stack trace on warning
+def warn_with_traceback(
+        message, category, filename, lineno, file=None, line=None):
+    log = file if hasattr(file,'write') else sys.stderr
+    traceback.print_stack(file=log)
+    log.write(warnings.formatwarning(message, category, filename, lineno, line))
+    log.write('\n')
+
+warnings.showwarning = warn_with_traceback
+
 robot_pose = np.array([[0], [0]], dtype=np.float64)
 lookahead_dist = 0.25
 waypoints = [
+    np.array([0, 0], dtype=np.float64),
     np.array([1, 0], dtype=np.float64),
-    np.array([1.5, 1], dtype=np.float64),
+    np.array([1, 1], dtype=np.float64),
     np.array([2, 1], dtype=np.float64),
-    np.array([2.5, 0], dtype=np.float64),
+    np.array([2, 0], dtype=np.float64),
     np.array([3, 0], dtype=np.float64),
-    np.array([4, .5], dtype=np.float64)
+    np.array([3, 1], dtype=np.float64),
 ]
 
 for i, pt in enumerate(waypoints):
@@ -21,7 +35,7 @@ xs = []      # m
 ys = []      # m
 t = 0        # s
 dt = 0.1     # s
-speed = 0.5  # m/s
+speed = .5   # m/s
 
 goal_xs = []
 goal_ys = []
@@ -29,7 +43,7 @@ goal_ys = []
 controller = pure_pursuit.PurePursuitController(lookahead_dist)
 controller.set_path(waypoints, robot_pose)
 
-while t < 15:
+while t < 90:
     robot_loc = pure_pursuit.extract_location(robot_pose)
     goal_pt = controller.get_goal_point(robot_pose)
     vel_dir = (goal_pt - robot_loc) / np.sqrt(np.sum((goal_pt - robot_loc)**2))
@@ -43,7 +57,7 @@ while t < 15:
     robot_pose += np.expand_dims(vel_dir, 1) * speed * dt
     t += dt
 
-    if controller.end_of_path and robot_loc[0] > 4.5:
+    if controller.end_of_path:
         break
 
 xs = np.array(xs)
