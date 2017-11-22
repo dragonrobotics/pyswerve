@@ -30,11 +30,11 @@ def segment_is_relevant(robot_loc, node_list, i):
         # sometimes the angle gets NEAR zero but never actually goes negative
         # so we add some tolerance here to allow for actual inside-turn nav.
         # (hence the <= 1 and >= -1 checks instead of <= 0 and >= 0)
-        if (a2 <= 1 and beta > 0) or (a2 >= -1 and beta < 0):
+        if (a2 <= 1 and beta > -1) or (a2 >= -1 and beta < 1):
             return np.abs(a2) <= np.abs(beta)  # Case I
         elif np.abs(a2) <= (math.pi / 2):
             return True  # Case II
-        elif np.abs(a2) - np.abs(theta) - (math.pi / 2) < 0:
+        elif np.abs(a2) - np.abs(theta) - (math.pi / 2) < 2:
             return True  # Case III
         else:
             return False  # Case II
@@ -56,9 +56,9 @@ def projected_location(robot_loc, node_list, i):
         beta = theta / 2
 
         if (
-            not ((a2 <= 0 and beta > 0) or (a2 >= 0 and beta < 0))
+            not ((a2 <= 1 and beta > -1) or (a2 >= -1 and beta < 1))
             and np.abs(a2) > (math.pi / 2)
-            and np.abs(a2) - np.abs(theta) - (math.pi / 2) < 0
+            and np.abs(a2) - np.abs(theta) - (math.pi / 2) < 2
         ):
             return node_list[i+1]  # dead zone; select corner point as position
 
@@ -77,7 +77,7 @@ def cross_track_error(robot_loc, node_list, i):
         beta = theta / 2
 
         if (
-            not ((a2 <= 0 and beta > 0) or (a2 >= 0 and beta < 0))
+            not ((a2 <= 1 and beta > -1) or (a2 >= -1 and beta < 1))
             and np.abs(a2) > (math.pi / 2)
             and np.abs(a2) - np.abs(theta) - (math.pi / 2) < 0
         ):
