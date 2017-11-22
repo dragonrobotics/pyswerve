@@ -1,8 +1,9 @@
 """Python implementation of the Pure Pursuit controller.
 """
 
-import numpy as np
 import math
+import warnings
+import numpy as np
 
 machine_eps = np.finfo(np.float64).eps
 
@@ -43,7 +44,9 @@ def segment_is_relevant(robot_loc, node_list, i):
     theta = angle_between(segment, next_segment)
     beta = theta / 2
 
-    if np.abs(a1) <= (math.pi / 2):
+    # NOTE: using <= here instead of < breaks paths that have exactly vertical
+    # first segments
+    if np.abs(a1) < (math.pi / 2):
         # bit of a hack here with case I
         # sometimes the angle gets NEAR zero but never actually goes negative
         # so we add some tolerance here to allow for actual inside-turn nav.
@@ -120,6 +123,16 @@ def presearch(robot_loc, node_list):
             and segment_is_relevant(robot_loc, node_list, i)
         )]
 
+    if len(relevant_segments) == 0:
+        # this happens when the beginning and end of a path are the same point
+        # or when you have 90 degree turns along paths
+        # play it safe, just return node 0 for the index
+        warnings.warn(
+            "No relevant path segments found in presearch",
+            RuntimeWarning)
+        return 0
+        #raise RuntimeError("No relevant path segments found!")
+
     smallest_err = relevant_segments[0]
     for segment in relevant_segments:
         if segment[1] < smallest_err[1]:
@@ -167,6 +180,9 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
 
         if magn_q1 <= lookahead_dist and magn_q2 >= lookahead_dist:
             # common case
+            if magn_q1 <= machine_eps:
+                magn_q1 = 0.001  # very hack-ish but keeps things from breaking
+
             cos_y = (
                 (np.sum(q2 ** 2) - np.sum(q1 ** 2) - np.sum(segment ** 2))
                 / (-2 * segment_len * magn_q1)
@@ -219,7 +235,7 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
 
     if relevant_segment == len(node_list) - 2:
         # Extend last segment to infinity if necessary
-        segment = node_list[len(node_list) - 1] - node_list[len(node_list) - 2]
+        segment = node_list[-1] - node_list[-2]
         segment_len = np.sqrt(np.sum(segment ** 2))
 
         q2 = node_list[-1] - robot_loc
