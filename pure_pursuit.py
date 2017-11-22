@@ -78,7 +78,10 @@ def presearch(robot_loc, node_list):
     # find relevant segment with least cross-track error
     relevant_segments = [
         (i, cross_track_error(node)) for i, node in enumerate(node_list)
-        if segment_is_relevant(robot_loc, node_list, i)]
+        if (
+            i < len(node_list) - 1
+            and segment_is_relevant(robot_loc, node_list, i)
+        )]
 
     smallest_err = relevant_segments[0]
     for segment in relevant_segments:
@@ -90,19 +93,14 @@ def presearch(robot_loc, node_list):
 
 def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
     # Find first relevant segment:
-    for i in range(search_start_idx, len(node_list)):
+    for i in range(search_start_idx, len(node_list)-1):
         if segment_is_relevant(robot_loc, node_list, i):
             relevant_segment = i
             break
 
     if relevant_segment is None:
         # Extend last segment to infinity if necessary
-        segment = node_list[len(node_list) - 1] - node_list[len(node_list) - 2]
-        q2 = node_list[len(node_list) - 1] - robot_loc
-        a2 = angle_between(segment, q2)
-
-        if search_start_idx == len(node_list) - 1 and np.abs(a2) > math.pi / 2:
-            relevant_segment = search_start_idx
+        relevant_segment = len(node_list) - 2
 
     projected_pos = projected_location(robot_loc, node_list, relevant_segment)
     x_track_err = cross_track_error(robot_loc, node_list, relevant_segment)
@@ -172,9 +170,13 @@ class PurePursuitController(object):
     """Keeps state for a Pure Pursuit Controller."""
     node_list = []
     search_start_index = 0
+    end_of_path = False
 
     def __init__(self, lookahead_dist):
         self.lookahead_dist = lookahead_dist
+
+    def reached_end_of_path(self):
+        return self.end_of_path
 
     def get_goal_point(self, robot_pose):
         goal_point, self.search_start_index = find_goal_point(
@@ -183,6 +185,9 @@ class PurePursuitController(object):
             self.node_list,
             self.search_start_index
         )
+
+        if self.search_start_index == len(self.node_list) - 2:
+            self.end_of_path = True
 
         return goal_point
 
@@ -194,4 +199,10 @@ class PurePursuitController(object):
         """
         robot_loc = extract_location(robot_pose)
         self.node_list = new_path
+        self.end_of_path = False
         self.search_start_index = presearch(robot_loc, new_path)
+
+        if self.search_start_index is None:
+            # Shouldn't happen... but just in case.
+            # Extend the last path segment to infinity.
+            self.search_start_index = len(new_path)-2
