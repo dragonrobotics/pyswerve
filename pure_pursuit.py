@@ -4,13 +4,31 @@
 import numpy as np
 import math
 
+machine_eps = np.finfo(np.float64).eps
 
 def extract_location(robot_pose):
     return np.array([robot_pose[0][0], robot_pose[1][0]])
 
 
 def angle_between(v1, v2):
-    return np.arccos(np.sum(v1*v2) / np.sqrt(np.sum(v1**2) * np.sum(v2**2)))
+    magn_prod = np.sum(v1**2) * np.sum(v2**2)  #  |v1|**2 * |v2|**2
+    if magn_prod <= machine_eps:
+        # somewhat arbitrary and hackish, but to keep things rom breaking
+        # just return zero when taking angles involving zero vectors.
+        # Could also raise a RuntimeError, but robots don't quit.
+        return 0
+
+    cos_theta = np.sum(v1*v2) / np.sqrt(magn_prod)
+
+    if np.abs(cos_theta) > 1:
+        # shouldn't be mathematically possible, but happens sometimes
+        # (due to rounding / floating point shenanigans?)
+        if cos_theta > 0:
+            return 0
+        else:
+            return math.pi
+
+    return np.arccos(cos_theta)
 
 
 def segment_is_relevant(robot_loc, node_list, i):
@@ -204,7 +222,7 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
         segment = node_list[len(node_list) - 1] - node_list[len(node_list) - 2]
         segment_len = np.sqrt(np.sum(segment ** 2))
 
-        q2 = node_list[len(node_list)-1] - robot_loc
+        q2 = node_list[-1] - robot_loc
         magn_q2 = np.sqrt(np.sum(q2 ** 2))
         eps = cross_track_error(robot_loc, node_list, len(node_list) - 2)
 
@@ -232,15 +250,23 @@ class PurePursuitController(object):
         return self.end_of_path
 
     def get_goal_point(self, robot_pose):
+        robot_loc = extract_location(robot_pose)
         goal_point, self.search_start_index = find_goal_point(
-            extract_location(robot_pose),
+            robot_loc,
             self.lookahead_dist,
             self.node_list,
             self.search_start_index
         )
 
         if self.search_start_index == len(self.node_list) - 2:
-            self.end_of_path = True
+            segment = self.node_list[-1] - self.node_list[-2]
+            q2 = self.node_list[-1] - robot_loc
+
+            magn_q2 = np.sqrt(np.sum(q2 ** 2))
+            a2 = angle_between(segment, q2)
+
+            if a2 >= (math.pi / 2):
+                self.end_of_path = True
 
         return goal_point
 
