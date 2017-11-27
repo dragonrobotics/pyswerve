@@ -1,3 +1,9 @@
+"""Simulates and displays an ideal robot's path under pure pursuit control.
+
+This is mainly meant as a debugging and testing aid.
+This script takes no arguments.
+"""
+
 import traceback
 import warnings
 import sys
