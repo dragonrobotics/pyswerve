@@ -10,12 +10,21 @@ angle_cmp_tol = math.radians(5)  # angle comparison tolerance
 
 
 def extract_location(robot_pose):
-    return np.array([robot_pose[0][0], robot_pose[1][0]])
+    """Convert a robot-pose 9-vector to a robot location 2-vector."""
+    if robot_pose.ndim == 2:
+        return np.array([robot_pose[0][0], robot_pose[1][0]])
+    elif robot_pose.ndim == 1:
+        return np.array([robot_pose[0], robot_pose[1]])
 
 
 # NOTE: using the dot product does _not_ work here.
 # using the dot product here leads to nothing but sadness and pain.
 def angle_between(v1, v2):
+    """Take the signed angle between two vectors.
+
+    This acts like a heading comparison; for example,
+    angle_between([1, 0], [1, -1]) = -45 degrees.
+    """
     a1 = np.arctan2(v1[1], v1[0])
     a2 = np.arctan2(v2[1], v2[0])
 
@@ -23,8 +32,11 @@ def angle_between(v1, v2):
 
 
 def segment_is_relevant(robot_loc, node_list, i):
+    """
+    Test whether the segment starting at node i in node_list is
+    relevant, given the current robot position.
+    """
     segment = node_list[i+1] - node_list[i]
-    next_segment = node_list[i+2] - node_list[i+1]
 
     q1 = robot_loc - node_list[i]
     q2 = node_list[i+1] - robot_loc
@@ -39,29 +51,17 @@ def segment_is_relevant(robot_loc, node_list, i):
 
     beta = theta / 2
 
-    #print("i={} A1={:.3f}deg A2={:.3f}deg B={:.3f}deg, theta={:.3f}rad".format(  # noqa: E501
-    #    i,
-    #    math.degrees(a1),
-    #    math.degrees(a2),
-    #    math.degrees(beta),
-    #    theta
-    #))
-
     if np.abs(a1) - (math.pi / 2) <= angle_cmp_tol:
         if (
             (a2 <= angle_cmp_tol and beta > -angle_cmp_tol)
             or (a2 >= -angle_cmp_tol and beta < angle_cmp_tol)
         ):
-            #print("Case 1 relevance...")
             return np.abs(a2) <= np.abs(beta)  # Case I
         elif np.abs(a2) <= (math.pi / 2):
-            #print("Case 2 relevant...")
             return True  # Case II
         elif np.abs(a2) - np.abs(theta) - (math.pi / 2) < angle_cmp_tol:
-            #print("Case 3 relevant...")
             return True  # Case III
         else:
-            #print("Case II irrelevant...")
             return False  # Case II
     else:
         return i == 0  # Case IV
@@ -69,6 +69,10 @@ def segment_is_relevant(robot_loc, node_list, i):
 
 # i == currently relevant segment / node index
 def projected_location(robot_loc, node_list, i):
+    """
+    Find the closest point from the robot on the path, given the
+    current relevant segment.
+    """
     segment = node_list[i+1] - node_list[i]
 
     q1 = robot_loc - node_list[i]
@@ -92,6 +96,10 @@ def projected_location(robot_loc, node_list, i):
 
 
 def cross_track_error(robot_loc, node_list, i):
+    """
+    Find the closest distance between the robot and the path, given
+    the current relevant segment.
+    """
     segment = node_list[i+1] - node_list[i]
 
     if i < len(node_list) - 2:
@@ -121,6 +129,13 @@ def cross_track_error(robot_loc, node_list, i):
 # Runs whenever a new path is sent to the controller.
 # Returns an index to initialize all other searches from.
 def presearch(robot_loc, node_list):
+    """
+    Search for the relevant segment with least cross-track error; this
+    is used to initialize the controller on receipt of a new path.
+
+    This returns an index into node_list; subsequent calls to
+    `find_goal_point` should use this the intial `search_start_idx`.
+    """
     # find relevant segment with least cross-track error
     relevant_segments = [
         (i, cross_track_error(robot_loc, node_list, i))
@@ -200,13 +215,10 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
         magn_q2 = np.sqrt(np.sum(q2 ** 2))
         segment_len = np.sqrt(np.sum(segment ** 2))
 
-        #print("|Q1| = "+str(magn_q1))
-        #print("|Q2| = "+str(magn_q2))
-
         if magn_q1 <= lookahead_dist and magn_q2 >= lookahead_dist:
             # common case
             if magn_q1 <= machine_eps:
-                magn_q1 = 0.00001  # very hack-ish but keeps things from breaking  noqa: E501
+                magn_q1 = 0.00001  # very hack-ish but keeps things from breaking  # noqa: E501
 
             cos_y = (
                 (np.sum(q2 ** 2) - np.sum(q1 ** 2) - np.sum(segment ** 2))
@@ -222,7 +234,6 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
                 3
             )
 
-            #print("Common: "+str(goal_tuple)+" i="+str(i))
             return goal_tuple
         elif (
             i == relevant_segment
@@ -237,8 +248,6 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
                     relevant_segment,
                     1
                 )
-
-                #print("2 intersections: "+str(goal_tuple))
 
                 return goal_tuple
             else:
@@ -262,8 +271,6 @@ def find_goal_point(robot_loc, lookahead_dist, node_list, search_start_idx):
                     selected_node,
                     2
                 )
-
-                #print("No intersections: "+str(goal_tuple))
 
                 return goal_tuple
         # else go to next segment
@@ -299,9 +306,23 @@ class PurePursuitController(object):
         self.lookahead_dist = lookahead_dist
 
     def reached_end_of_path(self):
+        """Test whether the robot is approaching the end of the path,
+        based on the last call to `get_goal_point`.
+
+        Note that this does not neccesarily mean the robot actually
+        _has_ reached the end of the path.
+        """
         return self.end_of_path
 
     def get_goal_point(self, robot_pose, debug_info=False):
+        """
+        Get the next goal point, given a previously set path and the
+        current robot position.
+
+        This returns a point (2-vector) by default; however, if
+        debug_info is True, this will also return the full
+        tuple of values from `find_goal_point`.
+        """
         robot_loc = extract_location(robot_pose)
         goal_tuple = find_goal_point(
             robot_loc,
@@ -314,12 +335,10 @@ class PurePursuitController(object):
         self.search_start_index = goal_tuple[1]
 
         if self.search_start_index == len(self.node_list) - 2:
-            segment = self.node_list[-1] - self.node_list[-2]
             q2 = self.node_list[-1] - robot_loc
             magn_q2 = np.sqrt(np.sum(q2 ** 2))
-            #a2 = angle_between(segment, q2)
 
-            if magn_q2 < self.lookahead_dist:  #a2 >= (math.pi / 2):
+            if magn_q2 < self.lookahead_dist:
                 self.end_of_path = True
 
         if debug_info:
@@ -330,7 +349,7 @@ class PurePursuitController(object):
     def set_path(self, new_path, robot_pose):
         """Sets a new path for the controller.
 
-        new_path should be a list of rank-1 ndarrays (shape (2,)).
+        new_path should be a list of 2-vectors (shape (2,)).
         robot_pose is the current robot pose as a 9-element vector.
         """
         robot_loc = extract_location(robot_pose)

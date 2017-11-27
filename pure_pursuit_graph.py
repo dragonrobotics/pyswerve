@@ -43,6 +43,7 @@ controller.set_path(waypoints, robot_pose)
 robot_positions = []
 goal_pts_by_case = [[], [], [], [], []]
 
+
 def plot_points(pts, color='k', linestyle='', marker=None):
     xs = []
     ys = []
@@ -54,6 +55,7 @@ def plot_points(pts, color='k', linestyle='', marker=None):
     ys = np.array(ys)
 
     plt.plot(xs, ys, color=color, linestyle=linestyle, marker=marker)
+
 
 ts = 0
 while t < 90:
