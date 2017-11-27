@@ -1,11 +1,25 @@
+"""Implements common logic for swerve modules.
+"""
 from ctre.cantalon import CANTalon
 import wpilib
 import math
 
 
 class SwerveModule(object):
-    """docstring for SwerveModule."""
+    """
+    Command interface for a swerve module.
+    """
     def __init__(self, name, steer_id, drive_id):
+        """
+        Create a new swerve module object.
+
+        `name` is a NetworkTables-friendly name to assign to this
+        swerve module; it is used when saving and loading
+        configuration data.
+
+        `steer_id` and `drive_id` are the CAN IDs for the Talons
+        controlling this module's steering and driving, respectively.
+        """
         self.steer_talon = CANTalon(steer_id)
         self.drive_talon = CANTalon(drive_id)
 
@@ -21,6 +35,13 @@ class SwerveModule(object):
         self.load_config_values()
 
     def load_config_values(self):
+        """
+        Load saved configuration values for this module via WPILib's
+        Preferences interface.
+
+        The key names are derived from the name passed to the
+        constructor.
+        """
         preferences = wpilib.Preferences.getInstance()
 
         self.steer_offset = preferences.getFloat(self.name+'-offset', 0)
@@ -28,16 +49,33 @@ class SwerveModule(object):
             self.name+'-reversed', False)
 
     def save_config_values(self):
+        """
+        Save configuration values for this module via WPILib's
+        Preferences interface.
+        """
         preferences = wpilib.Preferences.getInstance()
 
         preferences.putFloat(self.name+'-offset', self.steer_offset)
         preferences.putBoolean(self.name+'-reversed', self.drive_reversed)
 
     def get_steer_angle(self):
+        """
+        Get the current angular position of the swerve module in
+        radians.
+        """
         native_units = self.steer_talon.get()
         return (native_units - self.steer_offset) * math.pi / 512
 
     def set_steer_angle(self, angle_radians):
+        """
+        Steer the swerve module to the given angle in radians.
+        `angle_radians` should be within [-2pi, 2pi].
+
+        This method attempts to find the shortest path to the given
+        steering angle; thus, it may in actuality servo to the
+        position opposite the passed angle and reverse the drive
+        direction.
+        """
         # normalize negative angles
         if angle_radians < 0:
             angle_radians += 2 * math.pi
@@ -75,16 +113,29 @@ class SwerveModule(object):
             self.drive_reversed = not self.drive_reversed
 
     def set_drive_speed(self, percent_speed):
+        """
+        Drive the swerve module wheels at a given percentage of
+        maximum power or speed.
+        """
         if self.drive_reversed:
             percent_speed *= -1
 
         self.drive_talon.set(percent_speed)
 
     def apply_control_values(self, angle_radians, percent_speed):
+        """
+        Set a steering angle and a drive speed simultaneously.
+        """
         self.set_steer_angle(angle_radians)
         self.set_drive_speed(percent_speed)
 
     def update_smart_dashboard(self):
+        """
+        Push various pieces of info to the Smart Dashboard.
+
+        This method calls to NetworkTables (eventually), thus it may
+        be _slow_.
+        """
         wpilib.SmartDashboard.putNumber(
             self.name+' Position', self.steer_talon.get())
         wpilib.SmartDashboard.putNumber(self.name+' Target', self.steer_target)
