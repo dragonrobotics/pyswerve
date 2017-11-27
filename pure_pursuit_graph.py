@@ -59,7 +59,7 @@ def plot_points(pts, color='k', linestyle='', marker=None):
 
 ts = 0
 while t < 90:
-    robot_loc = pure_pursuit.extract_location(robot_pose)
+    robot_loc = np.array([robot_pose[0][0], robot_pose[1][0]])
     print("t={:.2f} loc={}".format(t, str(robot_loc)))
 
     goal_pt, goal_tuple = controller.get_goal_point(

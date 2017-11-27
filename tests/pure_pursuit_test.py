@@ -26,9 +26,9 @@ def simulate_path(waypoints):
     controller = pure_pursuit.PurePursuitController(lookahead_dist)
     controller.set_path(waypoints, robot_pose)
 
-    robot_loc = pure_pursuit.extract_location(robot_pose)
+    robot_loc = None
     for t in range(max_test_timesteps):
-        robot_loc = pure_pursuit.extract_location(robot_pose)
+        robot_loc = np.array([robot_pose[0][0], robot_pose[1][0]])
         goal_pt = controller.get_goal_point(robot_pose)
         vel_dir = (
             (goal_pt - robot_loc)
