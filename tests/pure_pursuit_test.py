@@ -19,7 +19,7 @@ sim_robot_velocity = .05
 lookahead_dist = 0.25
 max_test_timesteps = 1200
 initial_robot_pose = np.array([[0], [0]], dtype=np.float64)
-max_distance_at_end_of_path = 1
+max_distance_at_end_of_path = 0.25
 
 def simulate_path(waypoints):
     robot_pose = np.copy(initial_robot_pose)
@@ -48,33 +48,44 @@ def simulate_path(waypoints):
 
 def test_sharp_angles():
     simulate_path([
-        np.array([1, 0], dtype=np.float64),
-        np.array([1, 1], dtype=np.float64),
-        np.array([2, 1], dtype=np.float64),
-        np.array([2, 0], dtype=np.float64),
-        np.array([3, 0], dtype=np.float64),
-        np.array([3, 1], dtype=np.float64)
+        np.array([1, 0], dtype=np.float32),
+        np.array([1, 1], dtype=np.float32),
+        np.array([2, 1], dtype=np.float32),
+        np.array([2, 0], dtype=np.float32),
+        np.array([3, 0], dtype=np.float32),
+        np.array([3, 1], dtype=np.float32)
     ])
 
 
 def test_coincident_robot_start():
     simulate_path([
-        np.array([0, 0], dtype=np.float64),
-        np.array([1, 1], dtype=np.float64),
-        np.array([2, 1], dtype=np.float64),
-        np.array([2, 0], dtype=np.float64),
-        np.array([3, 0], dtype=np.float64),
-        np.array([3, 1], dtype=np.float64)
+        np.array([0, 0], dtype=np.float32),
+        np.array([1, 1], dtype=np.float32),
+        np.array([2, 1], dtype=np.float32),
+        np.array([2, 0], dtype=np.float32),
+        np.array([3, 0], dtype=np.float32),
+        np.array([3, 1], dtype=np.float32)
     ])
 
 
 def test_regular_path():
     simulate_path([
-        np.array([1, 1], dtype=np.float64),
-        np.array([2, 0], dtype=np.float64),
-        np.array([4, 2], dtype=np.float64),
-        np.array([5, 1], dtype=np.float64),
-        np.array([4, 0], dtype=np.float64),
-        np.array([2, 2], dtype=np.float64),
-        np.array([0.5, 1], dtype=np.float64)
+        np.array([1, 1], dtype=np.float32),
+        np.array([2, 0], dtype=np.float32),
+        np.array([4, 2], dtype=np.float32),
+        np.array([5, 1], dtype=np.float32),
+        np.array([4, 0], dtype=np.float32),
+        np.array([2, 2], dtype=np.float32),
+        np.array([0.5, 1], dtype=np.float32)
+    ])
+
+def test_tight_turn():
+    simulate_path([
+        np.array([1, 1], dtype=np.float32),
+        np.array([2, 0], dtype=np.float32),
+        np.array([4, 2], dtype=np.float32),
+        np.array([5, 1.75], dtype=np.float32),
+        np.array([4, 1.5], dtype=np.float32),
+        np.array([2, 2], dtype=np.float32),
+        np.array([0.5, 1], dtype=np.float32)
     ])
