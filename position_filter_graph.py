@@ -75,6 +75,9 @@ real_xs = []
 real_ys = []
 real_hdgs = []
 
+lin_err = []
+ang_err = []
+
 for step in range(int(15 / dt)):
     timestep_predict()
     timestep_update()
@@ -93,17 +96,23 @@ for step in range(int(15 / dt)):
     real_ys.append(real_pose[1][0])
     real_hdgs.append(real_pose[2][0])
 
-plt.subplot(211)
-plt.plot(ts, xs, 'r-')
-plt.plot(ts, ys, 'b-')
-plt.plot(ts, hdgs, 'g-')
+    abs_err = math.sqrt(
+        ((pos_filter.pose[0][0] - real_pose[0][0]) ** 2)
+        + ((pos_filter.pose[1][0] - real_pose[1][0]) ** 2)
+    )
+    lin_err.append(abs_err)
+    ang_err.append(abs(pos_filter.pose[2][0] - real_pose[2][0]))
 
-plt.plot(ts, real_xs, 'm--')
-plt.plot(ts, real_ys, 'c--')
+plt.subplot(311)
+plt.plot(xs, ys, 'r-')
+plt.plot(real_xs, real_ys, 'm--')
+
+plt.subplot(312)
+plt.plot(ts, hdgs, 'g-')
 plt.plot(ts, real_hdgs, 'y--')
 
-plt.subplot(212)
-plt.plot(ts, accelero_x, 'm--')
-plt.plot(ts, accelero_y, 'c--')
+plt.subplot(313)
+plt.plot(ts, lin_err, 'r--')
+plt.plot(ts, ang_err, 'b--')
 
 plt.show()
