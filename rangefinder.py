@@ -43,7 +43,7 @@ def normalize(p):
     return p / np.sum(p)
 
 
-def _rangefinder_likelihoods(z, z_exp, model):
+def rangefinder_likelihoods(z, z_exp, model):
     """
     Compute likelihoods for each distribution that comprises the
     rangefinder model.
@@ -54,7 +54,7 @@ def _rangefinder_likelihoods(z, z_exp, model):
 
     # p_hit
     if z - model[3] <= dist_cmp_thrs:
-        p[0] = (np.exp(-0.5 * (z - z_exp)**2 / v_hit)
+        p[0] = (np.exp(-0.5 * ((z - z_exp)**2) / v_hit)
                 / np.sqrt(2 * math.pi * v_hit))
 
     # p_unexp
@@ -70,7 +70,29 @@ def _rangefinder_likelihoods(z, z_exp, model):
     p[3] = 1 / model[3]
 
     # convert p into an ndarray and normalize
-    return normalize(np.array(p))
+    return normalize(np.array(p, dtype=np.float32))
+
+
+def log_lambda(z, z_exp, model):
+    """
+    Compute log[p(r=z | m) / p(r=z | not m)] given a rangefinder model.
+    """
+
+    v_hit = model[0]**2  # sigma_hit**2
+
+    log_p_hit = (
+        (((z_exp - z)**2) * -0.5 / v_hit)
+        - np.log(np.sqrt(2 * math.pi * v_hit))
+    )
+
+    p_free = (1 / model[3])  # p_rand
+
+    # p_max
+    # if sensor reading is within z_small units of max range...
+    if np.abs(z - model[3]) - model[2] <= dist_cmp_thrs:
+        p_free += (1 / model[2])
+
+    return log_p_hit - np.log(p_free)
 
 
 def rangefinder_model(z, z_exp, model, mix):
@@ -80,7 +102,7 @@ def rangefinder_model(z, z_exp, model, mix):
     to an obstruction.
     """
 
-    p = _rangefinder_likelihoods(z, z_exp, model)
+    p = rangefinder_likelihoods(z, z_exp, model)
     return np.sum(mix * p)
 
 
@@ -105,7 +127,7 @@ def learn_intrinsic_parameters(z, z_exp, model):
         e_short = []
 
         for z_i, z_exp_i in zip(z, z_exp):
-            p = _rangefinder_likelihoods(z_i, z_exp_i, current_model)
+            p = rangefinder_likelihoods(z_i, z_exp_i, current_model)
             e.append(p)
             e_hit.append(p[0])
             e_short.append(p[1])

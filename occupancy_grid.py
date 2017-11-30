@@ -17,7 +17,7 @@ def cells_on_line(p0, d, g0=None, g1=None):
     """
 
     n = np.abs(d)
-    s = np.sign(d)
+    s = np.sign(d, dtype=np.int32, casting='unsafe')
 
     i = [0, 0]
     cur = np.array([int(p0[0]), int(p0[1])], dtype=np.int32)
@@ -46,14 +46,18 @@ def cells_on_line(p0, d, g0=None, g1=None):
         yield np.copy(cur)
 
 
+def cells_in_ray(p0, theta, max_dist, grid):
+    d = np.array([np.cos(theta), np.sin(theta)]) * max_dist
+    return cells_on_line(p0, d, np.zeros(2), grid.shape)
+
+
 def draw_binary_line(p0, p1, grid, value):
     for cell in cells_on_line(p0, p1-p0, np.zeros(2), grid.shape):
         grid[cell[0]][cell[1]] = value
 
 
 def get_raycast_distance(p0, theta, max_dist, grid):
-    d = np.array([np.cos(theta), np.sin(theta)]) * max_dist
-    for cell in cells_on_line(p0, d, np.zeros(2), grid.shape):
+    for cell in cells_in_ray(p0, theta, max_dist, grid):
         if grid[cell[0]][cell[1]]:
             return np.sqrt(np.sum((p0 - cell)**2))
 
@@ -69,23 +73,29 @@ class OccupancyGrid(object):
         self.grid = np.zeros(grid_size, dtype=np.float32)
         self.scale = grid_scale
 
+    def get_occupied_cells(self):
+        return np.greater(self.grid, 0)
+
     def sensor_update(self, p0, theta, dist, model, mix):
         """
         Update the occupancy grid with a beam-based model.
         """
         d = np.array([np.cos(theta), np.sin(theta)]) * dist / self.scale
 
-        for cell in cells_on_line(p0, d, np.zeros(2), self.grid.shape):
-            grid_dist = np.sqrt(np.sum((p0 - cell)**2))
-            z_exp = grid_dist * self.scale
+        cell_matx = np.array([
+            cell.astype(np.float32)
+            for cell in cells_on_line(p0, d, np.zeros(2), self.grid.shape)
+        ])
 
-            likelihood = rangefinder.rangefinder_model(
-                dist,
-                z_exp,
-                model,
-                mix
-            )
+        z_exps = np.sqrt(np.sum((p0 - cell_matx)**2, axis=1)) * self.scale
 
-            modifier = np.log(likelihood / (1-likelihood))
+        modifiers = rangefinder.log_lambda(
+            dist,
+            z_exps,
+            model
+        )
 
-            self.grid[cell[0]][cell[1]] += modifier
+
+        for i in range(cell_matx.shape[0]):
+            cell = cell_matx[i]
+            self.grid[int(cell[0])][int(cell[1])] += modifiers[i]
