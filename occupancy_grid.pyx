@@ -70,19 +70,30 @@ cpdef np.ndarray list_cells_on_line(
 
     cell_list = [(cur[0], cur[1])]
 
-    while i[0] <= n[0] and i[1] <= n[1]:
-        o = [(0.5 + i[0]) / n[0], (0.5 + i[1]) / n[1]]
-
-        if abs(o[0] - o[1]) < 0.0000001:
-            cur[0] += s[0]
-            cur[1] += s[1]
-            i[0] += 1
+    while i[0] <= nv[0] and i[1] <= nv[1]:
+        if nv[0] == 0:
+            cur[1] += sv[1]
             i[1] += 1
-        elif o[0] < o[1]:
-            cur[0] += s[0]
+            continue
+
+        if nv[1] == 0:
+            cur[0] += sv[0]
+            i[0] += 1
+            continue
+
+        o = [(0.5 + i[0]) / nv[0], (0.5 + i[1]) / nv[1]]
+
+        #if abs(o[0] - o[1]) < 0.0000001:
+        #    cur[0] += s[0]
+        #    cur[1] += s[1]
+        #    i[0] += 1
+        #    i[1] += 1
+        #elif o[0] < o[1]:
+        if o[0] < o[1]:
+            cur[0] += sv[0]
             i[0] += 1
         else:
-            cur[1] += s[1]
+            cur[1] += sv[1]
             i[1] += 1
 
         if (

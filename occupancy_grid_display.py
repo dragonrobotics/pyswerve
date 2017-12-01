@@ -93,14 +93,14 @@ while True:
     ) + current_pos
 
     # perform raycast and find endpoint
-    #raycast_dist = occupancy_grid.get_raycast_distance(
-    #    current_pos, sensor_angle, rf_model[3] / map_scale, actual_grid
-    #)
+    raycast_dist = occupancy_grid.get_raycast_distance(
+        current_pos, sensor_angle, rf_model[3] / map_scale, actual_grid
+    )
 
-    #raycast_endpt = (
-    #    np.array([np.cos(sensor_angle), np.sin(sensor_angle)])
-    #    * raycast_dist
-    #) + current_pos
+    raycast_endpt = (
+        np.array([np.cos(sensor_angle), np.sin(sensor_angle)])
+        * raycast_dist
+    ) + current_pos
 
     if sensor_sweeping:
         # simulate sensor update
@@ -142,8 +142,8 @@ while True:
 
     # draw rays
     pygame.draw.line(actual_surf, (0, 0, 255), current_pos, max_endpt)
-    #pygame.draw.line(actual_surf, (255, 0, 0), current_pos, raycast_endpt)
-    #pygame.draw.line(map_surf, (255, 0, 0), current_pos, raycast_endpt)
+    pygame.draw.line(actual_surf, (255, 0, 0), current_pos, raycast_endpt)
+    pygame.draw.line(map_surf, (255, 0, 0), current_pos, raycast_endpt)
 
     actual_surf = pygame.transform.flip(actual_surf, False, True)
     map_surf = pygame.transform.flip(map_surf, False, True)
