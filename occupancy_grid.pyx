@@ -1,7 +1,7 @@
+# cython: profile=True
 """
 Implements occupancy grid mapping.
 """
-
 import math
 cimport cython
 import numpy as np
@@ -57,14 +57,19 @@ def cells_on_line(p0, d, g0=None, g1=None):
 cpdef np.ndarray list_cells_on_line(
     num_dtype_t[:] p0,
     num_dtype_t[:] delta,
-    int[:] g0,
-    int[:] g1
+    int[:] boundary
 ):
-    n = np.abs(delta)
-    s = np.sign(delta, dtype=np.int32, casting='unsafe')
+    #n = np.abs(delta)
+    #s = np.sign(delta, dtype=np.int32, casting='unsafe')
 
-    cdef num_dtype_t[:] nv = n
-    cdef int[:] sv = s
+    #cdef num_dtype_t[:] nv = n
+    cdef num_dtype_t nv[2]
+    nv = [abs(delta[0]), abs(delta[1])]
+
+    #cdef int[:] sv = s
+    cdef int sv[2]
+    sv = [np.sign(<int>delta[0]), np.sign(<int>delta[1])]
+
     cdef int i[2]
     cdef int cur[2]
     cdef num_dtype_t o[2]
@@ -74,12 +79,18 @@ cpdef np.ndarray list_cells_on_line(
 
     # max_n is upper bound on cell list length
     cdef int max_n = math.ceil(nv[0]) + math.ceil(nv[1]) + 1
-    out_array = np.zeros([max_n, 2], dtype=np.int32)
+    cdef np.ndarray out_array = np.zeros([max_n, 2], dtype=np.int32)
     cdef int[:, :] cell_list = out_array
     #cell_list = [(cur[0], cur[1])]
 
     cdef int t = 0
     while i[0] <= nv[0] and i[1] <= nv[1]:
+        if (
+            cur[0] <= 0 or cur[0] >= boundary[0]
+            or cur[1] <= 0 or cur[1] >= boundary[1]
+        ):
+            break
+
         cell_list[t][0] = cur[0]
         cell_list[t][1] = cur[1]
         t += 1
@@ -109,12 +120,6 @@ cpdef np.ndarray list_cells_on_line(
             cur[1] += sv[1]
             i[1] += 1
 
-        if (
-            cur[0] <= g0[0] or cur[0] >= g1[0]
-            or cur[1] <= g0[0] or cur[1] >= g1[1]
-        ):
-            break
-
         #cell_list.append((cur[0], cur[1]))
 
     #out_array = np.asarray(cell_list, dtype=np.int32)
@@ -137,7 +142,7 @@ cpdef num_dtype_t get_raycast_distance(
     num_dtype_t[:] p0,
     num_dtype_t theta,
     num_dtype_t max_dist,
-    np.ndarray grid
+    np.uint8_t[:, :] grid
 ) except? 0 :
     d = np.array(
         [np.cos(theta), np.sin(theta)], dtype=np_dtype
@@ -149,7 +154,6 @@ cpdef num_dtype_t get_raycast_distance(
     cdef np.ndarray cell_matx = list_cells_on_line(
         p0,
         d,
-        np.zeros(2, dtype=np.int32),
         grid_size
     )
 
@@ -182,12 +186,15 @@ cdef class OccupancyGrid(object):
     cpdef np.ndarray get_occupied_cells(self):
         return np.greater(self.grid, 0)
 
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     cpdef void sensor_update(
-            self,
-            num_dtype_t[:] p0,
-            num_dtype_t theta,
-            num_dtype_t dist,
-            num_dtype_t[:] model
+        self,
+        num_dtype_t[:] p0,
+        num_dtype_t theta,
+        num_dtype_t dist,
+        num_dtype_t[:] model
     ) except *:
         """
         Update the occupancy grid with a beam-based model.
@@ -200,7 +207,6 @@ cdef class OccupancyGrid(object):
         cell_matx = list_cells_on_line(
             p0,
             d,
-            np.zeros(2, dtype=np.int32),
             self.grid_size
         )
 
