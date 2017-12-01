@@ -2,3 +2,4 @@ pyfrc
 robotpy-ctre
 numpy
 flake8
+cython
