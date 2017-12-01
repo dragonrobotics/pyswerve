@@ -7,12 +7,11 @@ exts = [
     Extension(
         "occupancy_grid",
         ["occupancy_grid.pyx"],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=['/openmp']
+        include_dirs=[numpy.get_include()]
     )
 ]
 
 setup(
-    name = "occupancy_grid_display",
-    ext_modules = cythonize(exts)
+    name="occupancy_grid_display",
+    ext_modules=cythonize(exts)
 )

@@ -6,22 +6,21 @@ import math
 import sys
 import numpy as np
 import pygame
-from pygame.locals import *
-
 import pyximport
+
 pyximport.install(
     setup_args={
-        "include_dirs":np.get_include()
+        "include_dirs": np.get_include()
     },
     reload_support=True
 )
 
-import occupancy_grid
+import occupancy_grid  # noqa: E402
 
 grid_size = (600, 600)
 map_scale = 10
 
-actual_grid = np.zeros(grid_size, dtype=np.bool)
+actual_grid = np.zeros(grid_size, dtype=np.uint8)
 current_pos = np.array([200, 200], dtype=np.float32)
 
 rf_mix = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
@@ -32,10 +31,10 @@ c1 = np.array([550, 50], dtype=np.int32)
 c2 = np.array([50, 550], dtype=np.int32)
 c3 = np.array([550, 550], dtype=np.int32)
 
-occupancy_grid.draw_binary_line(c0, c1, actual_grid, True)
-occupancy_grid.draw_binary_line(c0, c2, actual_grid, True)
-occupancy_grid.draw_binary_line(c3, c1, actual_grid, True)
-occupancy_grid.draw_binary_line(c3, c2, actual_grid, True)
+occupancy_grid.draw_binary_line(c0, c1, actual_grid, 255)
+occupancy_grid.draw_binary_line(c0, c2, actual_grid, 255)
+occupancy_grid.draw_binary_line(c3, c1, actual_grid, 255)
+occupancy_grid.draw_binary_line(c3, c2, actual_grid, 255)
 
 pygame.init()
 screen = pygame.display.set_mode(((grid_size[0]*2)+5, grid_size[1]))
@@ -74,12 +73,12 @@ while True:
     dt = clock.tick(60)  # ms
 
     for event in pygame.event.get():
-        if event.type == QUIT:
+        if event.type == pygame.QUIT:
             sys.exit(0)
-        elif event.type == KEYDOWN:
-            if event.key == K_ESCAPE:
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
                 sys.exit(0)
-            elif event.key == K_SPACE:
+            elif event.key == pygame.K_SPACE:
                 sensor_sweeping = not sensor_sweeping
 
     if sensor_sweeping:
@@ -104,9 +103,9 @@ while True:
 
     if sensor_sweeping:
         # simulate sensor update
-        for i in range(measurements_per_frame):
+        for i in range(dt):
             # interpolate between the two angles
-            t = i / (measurements_per_frame-1)
+            t = i / (dt-1)
             intermed_angle = (t * sensor_angle) + ((1-t) * old_angle)
 
             # raycast and update
