@@ -19,6 +19,8 @@ import occupancy_grid  # noqa: E402
 
 grid_size = (600, 600)
 map_scale = 10
+draw_radius = 2
+erase_radius = 3
 
 actual_grid = np.zeros(grid_size, dtype=np.uint8)
 current_pos = np.array([200, 200], dtype=np.float32)
@@ -72,6 +74,8 @@ measurements_per_frame = 5
 inferred_map = occupancy_grid.OccupancyGrid(map_scale, actual_grid.shape)
 
 frame_no = 0
+mouse_down = False
+draw_state = 0
 while True:
     dt = clock.tick(60)  # ms
 
@@ -100,6 +104,20 @@ while True:
                 current_vel[1] = 0
             elif event.key == pygame.K_DOWN:
                 current_vel[1] = 0
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                mouse_down = True
+                mx, my = pygame.mouse.get_pos()
+                draw_state = 255 - actual_grid[mx][grid_size[1] - my]
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                mouse_down = False
+        elif event.type == pygame.MOUSEMOTION:
+            if mouse_down:
+                mx, my = pygame.mouse.get_pos()
+                my = grid_size[1] - my  # flip coordinates vertically
+                r = draw_radius if draw_state == 255 else erase_radius
+                actual_grid[mx-r:mx+r, my-r:my+r] = draw_state
 
     current_pos += current_vel * (dt / 1000)
 
