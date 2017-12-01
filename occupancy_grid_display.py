@@ -22,6 +22,9 @@ map_scale = 10
 
 actual_grid = np.zeros(grid_size, dtype=np.uint8)
 current_pos = np.array([200, 200], dtype=np.float32)
+current_vel = np.zeros(2, dtype=np.float32)
+
+move_speed = 100
 
 rf_mix = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
 rf_model = np.array([10/2, 0, 10, 4000], dtype=np.float32)
@@ -80,6 +83,25 @@ while True:
                 sys.exit(0)
             elif event.key == pygame.K_SPACE:
                 sensor_sweeping = not sensor_sweeping
+            elif event.key == pygame.K_LEFT:
+                current_vel[0] = -move_speed
+            elif event.key == pygame.K_RIGHT:
+                current_vel[0] = move_speed
+            elif event.key == pygame.K_UP:
+                current_vel[1] = move_speed
+            elif event.key == pygame.K_DOWN:
+                current_vel[1] = -move_speed
+        elif event.type == pygame.KEYUP:
+            if event.key == pygame.K_LEFT:
+                current_vel[0] = 0
+            elif event.key == pygame.K_RIGHT:
+                current_vel[0] = 0
+            elif event.key == pygame.K_UP:
+                current_vel[1] = 0
+            elif event.key == pygame.K_DOWN:
+                current_vel[1] = 0
+
+    current_pos += current_vel * (dt / 1000)
 
     if sensor_sweeping:
         old_angle = sensor_angle
@@ -92,20 +114,21 @@ while True:
     ) + current_pos
 
     # perform raycast and find endpoint
-    raycast_dist = occupancy_grid.get_raycast_distance(
-        current_pos, sensor_angle, rf_model[3] / map_scale, actual_grid
-    )
+    #raycast_dist = occupancy_grid.get_raycast_distance(
+    #    current_pos, sensor_angle, rf_model[3] / map_scale, actual_grid
+    #)
 
-    raycast_endpt = (
-        np.array([np.cos(sensor_angle), np.sin(sensor_angle)])
-        * raycast_dist
-    ) + current_pos
+    #raycast_endpt = (
+    #    np.array([np.cos(sensor_angle), np.sin(sensor_angle)])
+    #    * raycast_dist
+    #) + current_pos
 
     if sensor_sweeping:
         # simulate sensor update
-        for i in range(dt):
+        n_measurements = min(dt, 25)
+        for i in range(n_measurements):
             # interpolate between the two angles
-            t = i / (dt-1)
+            t = i / (n_measurements-1)
             intermed_angle = (t * sensor_angle) + ((1-t) * old_angle)
 
             # raycast and update
@@ -141,8 +164,9 @@ while True:
 
     # draw rays
     pygame.draw.line(actual_surf, (0, 0, 255), current_pos, max_endpt)
-    pygame.draw.line(actual_surf, (255, 0, 0), current_pos, raycast_endpt)
-    pygame.draw.line(map_surf, (255, 0, 0), current_pos, raycast_endpt)
+    pygame.draw.line(map_surf, (0, 0, 255), current_pos, max_endpt)
+    #pygame.draw.line(actual_surf, (255, 0, 0), current_pos, raycast_endpt)
+    #pygame.draw.line(map_surf, (255, 0, 0), current_pos, raycast_endpt)
 
     actual_surf = pygame.transform.flip(actual_surf, False, True)
     map_surf = pygame.transform.flip(map_surf, False, True)
