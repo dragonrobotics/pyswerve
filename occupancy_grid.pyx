@@ -2,6 +2,8 @@
 Implements occupancy grid mapping.
 """
 
+import math
+cimport cython
 import numpy as np
 cimport numpy as np
 import rangefinder
@@ -50,6 +52,8 @@ def cells_on_line(p0, d, g0=None, g1=None):
         yield np.copy(cur)
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef np.ndarray list_cells_on_line(
     num_dtype_t[:] p0,
     num_dtype_t[:] delta,
@@ -68,9 +72,18 @@ cpdef np.ndarray list_cells_on_line(
     i = [0, 0]
     cur = [int(p0[0]), int(p0[1])]
 
-    cell_list = [(cur[0], cur[1])]
+    # max_n is upper bound on cell list length
+    cdef int max_n = math.ceil(nv[0]) + math.ceil(nv[1]) + 1
+    out_array = np.zeros([max_n, 2], dtype=np.int32)
+    cdef int[:, :] cell_list = out_array
+    #cell_list = [(cur[0], cur[1])]
 
+    cdef int t = 0
     while i[0] <= nv[0] and i[1] <= nv[1]:
+        cell_list[t][0] = cur[0]
+        cell_list[t][1] = cur[1]
+        t += 1
+
         if nv[0] == 0:
             cur[1] += sv[1]
             i[1] += 1
@@ -102,9 +115,12 @@ cpdef np.ndarray list_cells_on_line(
         ):
             break
 
-        cell_list.append((cur[0], cur[1]))
+        #cell_list.append((cur[0], cur[1]))
 
-    return np.array(cell_list, dtype=np.int32)
+    #out_array = np.asarray(cell_list, dtype=np.int32)
+    out_array.resize((t, 2), refcheck=False)
+
+    return out_array
 
 
 def cells_in_ray(p0, theta, max_dist, grid):
@@ -130,7 +146,7 @@ cpdef num_dtype_t get_raycast_distance(
     cdef int grid_size[2]
     grid_size = [grid.shape[0], grid.shape[1]]
 
-    cell_matx = list_cells_on_line(
+    cdef np.ndarray cell_matx = list_cells_on_line(
         p0,
         d,
         np.zeros(2, dtype=np.int32),
@@ -138,8 +154,10 @@ cpdef num_dtype_t get_raycast_distance(
     )
 
     cdef int[:, :] cell_view = cell_matx
+    cdef int i
+    cdef int n_cells = cell_view.shape[0]
 
-    for i in range(cell_view.shape[0]):
+    for i in range(n_cells):
         if grid[cell_view[i][0]][cell_view[i][1]] > 0:
             return np.sqrt(np.sum((p0 - cell_matx[i])**2))
 
