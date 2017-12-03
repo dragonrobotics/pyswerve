@@ -22,17 +22,17 @@ def cells_on_line(p0, d, g0=None, g1=None):
     Both corners are included in this rectangle.
 
     Args:
-        p0 (ndarray of shape (2,)): The start point of the line.
-        d (ndarray of shape (2,)): The displacement of the line along
+        p0 (ndarray of shape ``(2,)``): The start point of the line.
+        d (ndarray of shape ``(2,)``): The displacement of the line along
             the X and Y axes.
-        g0 (ndarray of shape (2,), optional):
+        g0 (ndarray of shape ``(2,)``, optional):
             The lower-left corner of the boundary region.
-        g1 (ndarray of shape (2,), optional):
+        g1 (ndarray of shape ``(2,)``, optional):
             The upper-right corner of the boundary region.
 
     Yields:
-        integer ndarray, shape (2,): The next point on the line between ``p0``
-        and ``p0+d``.
+        integer ndarray, shape ``(2,)``: The next point on the line between
+        ``p0`` and ``p0+d``.
     """
 
     n = np.abs(d)
@@ -79,15 +79,15 @@ cpdef np.ndarray list_cells_on_line(
     rectangular region between the origin and the ``boundary`` point.
 
     Args:
-        p0 (float memoryview shape (2,)): The start point for the line.
-        delta (float memoryview, shape (2,)): The X and Y displacement of the
+        p0 (float memoryview shape ``(2,)``): The start point for the line.
+        delta (float memoryview, shape ``(2,)``): The X and Y displacement of the
             line's other endpoint.
-        boundary (int memoryview, shape (2,)): the upper-right corner of the
+        boundary (int memoryview, shape ``(2,)``): the upper-right corner of the
             boundary region, inclusive.
 
     Returns:
-        integer ndarray, shape (t, 2): A 2-dimensional array containing all
-            grid points covered by the line, ordered from closest to farthest.
+        integer ndarray, shape ``(t, 2)``: A 2-dimensional array containing all
+        grid points covered by the line, ordered from closest to farthest.
     """
     #n = np.abs(delta)
     #s = np.sign(delta, dtype=np.int32, casting='unsafe')
@@ -163,8 +163,8 @@ def draw_binary_line(p0, p1, grid, value):
     Set cells in a grid that lie on a given line to a value.
 
     Args:
-        p0 (float ndarray, shape (2,)): The start point for the line.
-        p1 (float ndarray, shape (2,)): The end point for the line.
+        p0 (float ndarray, shape ``(2,)``): The start point for the line.
+        p1 (float ndarray, shape ``(2,)``): The end point for the line.
         grid (2-dimensional ndarray): The grid containing cells to set.
         value: The value to assign to cells that lie on the line.
     """
@@ -185,7 +185,7 @@ cpdef num_dtype_t get_raycast_distance(
     occupied cell in a given direction, up to a specified maximum distance.
 
     Args:
-        p0 (float ndarray, shape (2,)): The start point for the raycast.
+        p0 (float ndarray, shape ``(2,)``): The start point for the raycast.
         theta (float): The direction for the raycast, in a right-handed
             coordinate system.
         max_dist (float): The maximum distance to search out for.
@@ -195,7 +195,7 @@ cpdef num_dtype_t get_raycast_distance(
 
     Returns:
         float: The distance to the closest occupied cell, or ``max_dist`` if
-            no such cell could be found.
+        no such cell could be found.
     """
     d = np.array(
         [np.cos(theta), np.sin(theta)], dtype=np_dtype
@@ -256,7 +256,7 @@ cdef class OccupancyGrid(object):
 
         Args:
             grid_scale (float): The scale factor to use for this map.
-            grid_size (integer array-like, shape (2,)): The size of the region
+            grid_size (integer array-like, shape ``(2,)``): The size of the region
                 covered by this map, in grid squares.
         """
         self.grid = np.zeros(grid_size, dtype=np_dtype)
@@ -270,8 +270,8 @@ cdef class OccupancyGrid(object):
 
         Returns:
             2-dimensional boolean ndarray: An array of the same shape and
-                semantics as :attr:`~.grid`, where True cells are likely to be
-                occupied and False cells are likely to be free.
+            semantics as :attr:`~.grid`, where True cells are likely to be
+            occupied and False cells are likely to be free.
         """
         return np.greater(self.grid, 0)
 
@@ -289,11 +289,11 @@ cdef class OccupancyGrid(object):
         Update the occupancy grid with a beam-based rangefinder model.
 
         Args:
-            p0 (float ndarray, shape (2,)): The start point for the beam
+            p0 (float ndarray, shape ``(2,)``): The start point for the beam
                 measurement (i.e. the location of the rangefinder).
             theta (float): The heading of the beam measurement.
             dist (float): The actual measured distance, in real units.
-            model (float ndarray, shape (4,)): The rangefinder model to use.
+            model (float ndarray, shape ``(4,)``): The rangefinder model to use.
                 See the documentation for :mod:`rangefinder` for more details.
         """
 
