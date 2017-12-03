@@ -1,6 +1,6 @@
 # cython: profile=True
 """
-Implements occupancy grid mapping.
+Implements occupancy grid mapping as a Cythonized extension module.
 """
 import math
 cimport cython
@@ -14,12 +14,25 @@ ctypedef float num_dtype_t
 
 def cells_on_line(p0, d, g0=None, g1=None):
     """
-    Get all cells covered by a line segment stretching from `p0` to
-    `p0+d`.
+    Iterate over all cells covered by a line segment stretching from ``p0`` to
+    ``p0+d``.
 
     The returned line can optionally be constrained to the rectangle defined
-    by `g0` (as the lower-left corner) and `g1` (as the upper-right corner).
+    by ``g0`` (as the lower-left corner) and ``g1`` (as the upper-right corner).
     Both corners are included in this rectangle.
+
+    Args:
+        p0 (ndarray of shape (2,)): The start point of the line.
+        d (ndarray of shape (2,)): The displacement of the line along
+            the X and Y axes.
+        g0 (ndarray of shape (2,), optional):
+            The lower-left corner of the boundary region.
+        g1 (ndarray of shape (2,), optional):
+            The upper-right corner of the boundary region.
+
+    Yields:
+        integer ndarray, shape (2,): The next point on the line between ``p0``
+        and ``p0+d``.
     """
 
     n = np.abs(d)
@@ -59,6 +72,23 @@ cpdef np.ndarray list_cells_on_line(
     num_dtype_t[:] delta,
     int[:] boundary
 ):
+    """
+    Calculate and list all points along the line from ``p0`` to ``p0+delta``.
+
+    The returned line is additionally constrained to fall inside the
+    rectangular region between the origin and the ``boundary`` point.
+
+    Args:
+        p0 (float memoryview shape (2,)): The start point for the line.
+        delta (float memoryview, shape (2,)): The X and Y displacement of the
+            line's other endpoint.
+        boundary (int memoryview, shape (2,)): the upper-right corner of the
+            boundary region, inclusive.
+
+    Returns:
+        integer ndarray, shape (t, 2): A 2-dimensional array containing all
+            grid points covered by the line, ordered from closest to farthest.
+    """
     #n = np.abs(delta)
     #s = np.sign(delta, dtype=np.int32, casting='unsafe')
 
@@ -128,12 +158,16 @@ cpdef np.ndarray list_cells_on_line(
     return out_array
 
 
-def cells_in_ray(p0, theta, max_dist, grid):
-    d = np.array([np.cos(theta), np.sin(theta)]) * max_dist
-    return cells_on_line(p0, d, np.zeros(2), grid.shape)
-
-
 def draw_binary_line(p0, p1, grid, value):
+    """
+    Set cells in a grid that lie on a given line to a value.
+
+    Args:
+        p0 (float ndarray, shape (2,)): The start point for the line.
+        p1 (float ndarray, shape (2,)): The end point for the line.
+        grid (2-dimensional ndarray): The grid containing cells to set.
+        value: The value to assign to cells that lie on the line.
+    """
     for cell in cells_on_line(p0, p1-p0, np.zeros(2), grid.shape):
         grid[cell[0]][cell[1]] = value
 
@@ -144,6 +178,25 @@ cpdef num_dtype_t get_raycast_distance(
     num_dtype_t max_dist,
     np.uint8_t[:, :] grid
 ) except? 0 :
+    """
+    Perform a raycast from a point, in a given direction, on a binary grid.
+
+    This function computes the distance between a point and the nearest
+    occupied cell in a given direction, up to a specified maximum distance.
+
+    Args:
+        p0 (float ndarray, shape (2,)): The start point for the raycast.
+        theta (float): The direction for the raycast, in a right-handed
+            coordinate system.
+        max_dist (float): The maximum distance to search out for.
+        grid (2-dimensional integer ndarray): The grid on which the search is
+            performed; grid cells with values greater than 0 are assumed to be
+            occupied.
+
+    Returns:
+        float: The distance to the closest occupied cell, or ``max_dist`` if
+            no such cell could be found.
+    """
     d = np.array(
         [np.cos(theta), np.sin(theta)], dtype=np_dtype
     ) * max_dist
@@ -169,21 +222,57 @@ cpdef num_dtype_t get_raycast_distance(
 
 
 cdef class OccupancyGrid(object):
-    """docstring for OccupancyGrid."""
+    """
+    Generate a map from rangefinder sensor data.
+
+    The map is represented as a set of uniform grid squares that span the
+    region of interest; each square is assigned a value describing how likely
+    it is to be 'occupied' by an object.
+
+    This particular implementation uses log-odds to represent occupancy
+    proababilities; that is, instead of storing :math:`p(occupied)` directly,
+    the value :math:`\\frac{p(occupied)}{1 - p(occupied)}` is stored instead.
+    This is for the sake of numerical stability. It should be noted, however,
+    that with this representation positive values represent probabilities
+    greater than 50%, and that negative values represent probabilities less
+    than 50%.
+
+    Attributes:
+        grid (2-dimensional float ndarray): The computed map.
+            Each value in this array corresponds to a particular grid square;
+            the value is the log-odds representation of the probability that
+            this grid square is occupied.
+        scale (float): The map scale factor.
+            This is the length of one grid square in reality.
+    """
 
     cdef num_dtype_t[:, :] grid
     cdef num_dtype_t scale
-    cdef int grid_size[2]
+    cdef int _grid_size[2]
 
     def __init__(self, num_dtype_t grid_scale, grid_size):
         """
-        grid_scale = scale factor (actual units per grid cell length)
+        Initialize an occupancy grid map.
+
+        Args:
+            grid_scale (float): The scale factor to use for this map.
+            grid_size (integer array-like, shape (2,)): The size of the region
+                covered by this map, in grid squares.
         """
         self.grid = np.zeros(grid_size, dtype=np_dtype)
         self.scale = grid_scale
-        self.grid_size = grid_size  # [grid_size[0], grid_size[1]]
+        self._grid_size = grid_size  # [grid_size[0], grid_size[1]]
+
 
     cpdef np.ndarray get_occupied_cells(self):
+        """
+        Get a boolean representation of the computed map.
+
+        Returns:
+            2-dimensional boolean ndarray: An array of the same shape and
+                semantics as :attr:`~.grid`, where True cells are likely to be
+                occupied and False cells are likely to be free.
+        """
         return np.greater(self.grid, 0)
 
 
@@ -197,7 +286,15 @@ cdef class OccupancyGrid(object):
         num_dtype_t[:] model
     ) except *:
         """
-        Update the occupancy grid with a beam-based model.
+        Update the occupancy grid with a beam-based rangefinder model.
+
+        Args:
+            p0 (float ndarray, shape (2,)): The start point for the beam
+                measurement (i.e. the location of the rangefinder).
+            theta (float): The heading of the beam measurement.
+            dist (float): The actual measured distance, in real units.
+            model (float ndarray, shape (4,)): The rangefinder model to use.
+                See the documentation for :mod:`rangefinder` for more details.
         """
 
         d = np.array(
@@ -207,7 +304,7 @@ cdef class OccupancyGrid(object):
         cell_matx = list_cells_on_line(
             p0,
             d,
-            self.grid_size
+            self._grid_size
         )
 
         z_exps = np.sqrt(np.sum((p0 - cell_matx)**2, axis=1)) * self.scale
