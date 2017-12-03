@@ -8,17 +8,36 @@ import math
 class SwerveModule(object):
     """
     Command interface for a swerve module.
+
+    Attributes:
+        steer_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used to
+            actuate this module's steering.
+        drive_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used to
+            actuate this module's drive.
+        name (string): A NetworkTables-friendly name for this swerve module.
+            Used for saving and loading configuration data.
+        steer_target (number): The current target steering position for this
+            module, in radians.
+        steer_offset (number): The swerve module's steering zero position.
+            This value can be determined by manually steering a swerve module
+            so that it faces forwards relative to the chassis, and by taking
+            the raw encoder position value (ADC reading); this value is the
+            steer offset.
+        drive_reversed (boolean): Whether or not the drive motor's output is
+            currently reversed.
     """
     def __init__(self, name, steer_id, drive_id):
         """
         Create a new swerve module object.
 
-        `name` is a NetworkTables-friendly name to assign to this
-        swerve module; it is used when saving and loading
-        configuration data.
-
-        `steer_id` and `drive_id` are the CAN IDs for the Talons
-        controlling this module's steering and driving, respectively.
+        Args:
+            name (string): A NetworkTables-friendly name to assign to this
+                swerve module; it is used when saving and loading
+                configuration data.
+            steer_id (number): The CAN ID for the Talon SRX controlling this
+                module's steering.
+            drive_id (number): The CAN ID for the Talon SRX controlling this
+                module's driving.
         """
         self.steer_talon = CANTalon(steer_id)
         self.drive_talon = CANTalon(drive_id)
@@ -75,6 +94,10 @@ class SwerveModule(object):
         steering angle; thus, it may in actuality servo to the
         position opposite the passed angle and reverse the drive
         direction.
+
+        Args:
+            angle_radians (number): The angle to steer towards in radians,
+                where 0 points in the chassis forward direction.
         """
         # normalize negative angles
         if angle_radians < 0:
@@ -116,6 +139,11 @@ class SwerveModule(object):
         """
         Drive the swerve module wheels at a given percentage of
         maximum power or speed.
+
+        Args:
+            percent_speed (number): The speed to drive the module at, expressed
+                as a percentage of maximum speed. Negative values drive in
+                reverse.
         """
         if self.drive_reversed:
             percent_speed *= -1
@@ -125,6 +153,13 @@ class SwerveModule(object):
     def apply_control_values(self, angle_radians, percent_speed):
         """
         Set a steering angle and a drive speed simultaneously.
+
+        Args:
+            angle_radians (number): The desired angle to steer towards.
+            percent_speed (number): The desired percentage speed to drive at.
+
+        See Also:
+            :func:`~set_drive_speed` and :func:`~set_steer_angle`
         """
         self.set_steer_angle(angle_radians)
         self.set_drive_speed(percent_speed)
@@ -135,6 +170,9 @@ class SwerveModule(object):
 
         This method calls to NetworkTables (eventually), thus it may
         be _slow_.
+
+        As of right now, this displays the current raw absolute encoder reading
+        from the steer Talon, and the current target steer position.
         """
         wpilib.SmartDashboard.putNumber(
             self.name+' Position', self.steer_talon.get())
