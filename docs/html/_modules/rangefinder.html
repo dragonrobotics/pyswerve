@@ -1,0 +1,303 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>rangefinder &#8212; pyswerve 0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for rangefinder</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Implements common logic for rangefinder sensors.</span>
+
+<span class="sd">Common parameters:</span>
+<span class="sd">`mix` is a vector of shape ``(4,)`` containing the inverse sensor model</span>
+<span class="sd">parameters:</span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">    [\\alpha_{hit}, \\alpha_{unexp}, \\alpha_{max}, \\alpha_{rand}]</span>
+
+<span class="sd">where</span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">    \\alpha_{hit} + \\alpha_{unexp} + \\alpha_{max} + \\alpha_{rand} = 1</span>
+
+<span class="sd">and</span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">    P(z_t | x_t, m)</span>
+<span class="sd">    = [\\alpha_{hit}, \\alpha_{unexp}, \\alpha_{max}, \\alpha_{rand}]</span>
+<span class="sd">    \\cdot [p_{hit}, p_{unexp}, p_{max}, p_{rand}]</span>
+
+<span class="sd">in other words, `mix` defines the mixing parameters</span>
+<span class="sd">for a mixed distribution composed of four other distributions:</span>
+
+<span class="sd">    - :math:`p_{hit}` is a Gaussian distribution centered around the expected</span>
+<span class="sd">      distance, z_exp</span>
+<span class="sd">    - :math:`p_{unexp}` is an exponential distribution that is cut off at</span>
+<span class="sd">      z=z_exp</span>
+<span class="sd">    - :math:`p_{max}` is a very narrow uniform distribution centered around the</span>
+<span class="sd">      sensor&#39;s maximum range.</span>
+<span class="sd">    - :math:`p_{rand}` is a uniform distribution spread across the sensor&#39;s</span>
+<span class="sd">      entire range.</span>
+
+<span class="sd">Together, these four distributions comprise a beam-based sensor model.</span>
+
+<span class="sd">`model` is a vector of shape ``(4,)`` containing other model parameters:</span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">    [\\sigma_{hit}, \\lambda_{short}, z_{small}, z_{max}]</span>
+
+<span class="sd">these parameters define the four distributions described above.</span>
+<span class="sd">(:math:`z_{small}` is the width of p_max)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+
+<span class="n">dist_cmp_thrs</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># distance comparison threshold</span>
+
+
+<div class="viewcode-block" id="normalize"><a class="viewcode-back" href="../rangefinder.html#rangefinder.normalize">[docs]</a><span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Normalize all values within p.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ndarrray: An ``ndarray`` with the same size and shape as p, normalized</span>
+<span class="sd">        such that all values fall within the range [0, 1] and sum to 1.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">p</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">p</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="rangefinder_likelihoods"><a class="viewcode-back" href="../rangefinder.html#rangefinder.rangefinder_likelihoods">[docs]</a><span class="k">def</span> <span class="nf">rangefinder_likelihoods</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z_exp</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute likelihoods for each distribution in the rangefinder model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        z (number): A distance measurement from the rangefinder.</span>
+<span class="sd">        z_exp (number): The expected distance measurement from e.g. a map.</span>
+<span class="sd">        model: A model parameter vector.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">v_hit</span> <span class="o">=</span> <span class="n">model</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>  <span class="c1"># sigma_hit**2</span>
+
+    <span class="n">p</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># p_hit</span>
+    <span class="k">if</span> <span class="n">z</span> <span class="o">-</span> <span class="n">model</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">dist_cmp_thrs</span><span class="p">:</span>
+        <span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">((</span><span class="n">z</span> <span class="o">-</span> <span class="n">z_exp</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">v_hit</span><span class="p">)</span>
+                <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">v_hit</span><span class="p">))</span>
+
+    <span class="c1"># p_unexp</span>
+    <span class="k">if</span> <span class="n">z</span> <span class="o">-</span> <span class="n">z_exp</span> <span class="o">&lt;=</span> <span class="n">dist_cmp_thrs</span><span class="p">:</span>
+        <span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">model</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">z</span><span class="p">)</span>
+
+    <span class="c1"># p_max</span>
+    <span class="c1"># if sensor reading is within z_small units of max range...</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">model</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="o">-</span> <span class="n">model</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">dist_cmp_thrs</span><span class="p">:</span>
+        <span class="n">p</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">model</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="c1"># p_rand</span>
+    <span class="n">p</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">model</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="c1"># convert p into an ndarray and normalize</span>
+    <span class="k">return</span> <span class="n">normalize</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="log_lambda"><a class="viewcode-back" href="../rangefinder.html#rangefinder.log_lambda">[docs]</a><span class="k">def</span> <span class="nf">log_lambda</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z_exp</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the relative log-likelihood of a map, given a rangefinder model.</span>
+
+<span class="sd">    Specifically, this computes:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \\log \\frac{p(r=z | m)}{p(r=z | \\neg m)}</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        z (number): A distance measurement from the rangefinder.</span>
+<span class="sd">        z_exp (number): The expected distance measurement from e.g. a map.</span>
+<span class="sd">        model: A model parameter vector.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        number: The relative log-likelihood of a map, given the passed</span>
+<span class="sd">        measured and expected distances.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">v_hit</span> <span class="o">=</span> <span class="n">model</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>  <span class="c1"># sigma_hit**2</span>
+
+    <span class="n">log_p_hit</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">(((</span><span class="n">z_exp</span> <span class="o">-</span> <span class="n">z</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">/</span> <span class="n">v_hit</span><span class="p">)</span>
+        <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">v_hit</span><span class="p">))</span>
+    <span class="p">)</span>
+
+    <span class="n">p_free</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">model</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>  <span class="c1"># p_rand</span>
+
+    <span class="c1"># p_max</span>
+    <span class="c1"># if sensor reading is within z_small units of max range...</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">model</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="o">-</span> <span class="n">model</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">dist_cmp_thrs</span><span class="p">:</span>
+        <span class="n">p_free</span> <span class="o">+=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">model</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">log_p_hit</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">p_free</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="rangefinder_model"><a class="viewcode-back" href="../rangefinder.html#rangefinder.rangefinder_model">[docs]</a><span class="k">def</span> <span class="nf">rangefinder_model</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z_exp</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">mix</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the likelihood of one sensor measurement,</span>
+<span class="sd">    given model and mixing parameters, as well as the expected distance</span>
+<span class="sd">    to an obstruction.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        z (number): A distance measurement from the rangefinder.</span>
+<span class="sd">        z_exp (number): The expected distance measurement from e.g. a map.</span>
+<span class="sd">        model: A model parameter vector.</span>
+<span class="sd">        mix: A model mixing vector.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        number: The probability of the sensor measurement, given the</span>
+<span class="sd">        expected distance and model parameters.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">p</span> <span class="o">=</span> <span class="n">rangefinder_likelihoods</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z_exp</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mix</span> <span class="o">*</span> <span class="n">p</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="learn_intrinsic_parameters"><a class="viewcode-back" href="../rangefinder.html#rangefinder.learn_intrinsic_parameters">[docs]</a><span class="k">def</span> <span class="nf">learn_intrinsic_parameters</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z_exp</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Attempt to calculate model and mixing parameters from actual data.</span>
+
+<span class="sd">    This attempts to estimate model and mixing parameters using a maximum-</span>
+<span class="sd">    likelihood estimator.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        z (number ndarray): A vector containing sensor measurement data.</span>
+<span class="sd">        z_exp (number ndarray): A vector containing expected distances for</span>
+<span class="sd">            each measurement in ``z``.</span>
+<span class="sd">        model (number ndarray, shape ``(4,)``): An initial estimate for all</span>
+<span class="sd">            model parameters.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A tuple containing both a model parameter vector and a mixing vector.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">current_mix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="mi">4</span><span class="p">])</span>
+    <span class="n">current_model</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+    <span class="c1"># NOTE: we can stop beforehand if the algorithm converges</span>
+    <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">12</span><span class="p">):</span>
+        <span class="c1"># Calculate likelihoods for each distribution separately:</span>
+        <span class="n">e</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">e_hit</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">e_short</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">z_i</span><span class="p">,</span> <span class="n">z_exp_i</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z_exp</span><span class="p">):</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">rangefinder_likelihoods</span><span class="p">(</span><span class="n">z_i</span><span class="p">,</span> <span class="n">z_exp_i</span><span class="p">,</span> <span class="n">current_model</span><span class="p">)</span>
+            <span class="n">e</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+            <span class="n">e_hit</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">e_short</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">e</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="n">e_hit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">e_hit</span><span class="p">)</span>
+        <span class="n">e_short</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">e_short</span><span class="p">)</span>
+
+        <span class="n">current_mix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># sigma_hit</span>
+        <span class="n">current_model</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e_hit</span> <span class="o">*</span> <span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">z_exp</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e_hit</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># lambda_short</span>
+        <span class="n">current_model</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e_short</span><span class="p">)</span>
+            <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e_short</span> <span class="o">*</span> <span class="n">z</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">current_model</span><span class="p">,</span> <span class="n">current_mix</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">pyswerve</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Dragon Robotics 5002.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

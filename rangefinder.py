@@ -25,6 +25,7 @@ and
 
 in other words, `mix` defines the mixing parameters
 for a mixed distribution composed of four other distributions:
+
     - :math:`p_{hit}` is a Gaussian distribution centered around the expected
       distance, z_exp
     - :math:`p_{unexp}` is an exponential distribution that is cut off at
@@ -33,6 +34,7 @@ for a mixed distribution composed of four other distributions:
       sensor's maximum range.
     - :math:`p_{rand}` is a uniform distribution spread across the sensor's
       entire range.
+
 Together, these four distributions comprise a beam-based sensor model.
 
 `model` is a vector of shape ``(4,)`` containing other model parameters:

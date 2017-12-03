@@ -24,6 +24,8 @@
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="rangefinder module" href="rangefinder.html" />
+    <link rel="prev" title="pyswerve" href="modules.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -39,8 +41,207 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="occupancy-grid-module">
-<h1>occupancy_grid module<a class="headerlink" href="#occupancy-grid-module" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="module-occupancy_grid">
+<span id="occupancy-grid-module"></span><h1>occupancy_grid module<a class="headerlink" href="#module-occupancy_grid" title="Permalink to this headline">¶</a></h1>
+<p>Implements occupancy grid mapping as a Cythonized extension module.</p>
+<dl class="class">
+<dt id="occupancy_grid.OccupancyGrid">
+<em class="property">class </em><code class="descclassname">occupancy_grid.</code><code class="descname">OccupancyGrid</code><a class="headerlink" href="#occupancy_grid.OccupancyGrid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3.6/library/functions.html#object" title="(in Python v3.6)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Generate a map from rangefinder sensor data.</p>
+<p>The map is represented as a set of uniform grid squares that span the
+region of interest; each square is assigned a value describing how likely
+it is to be ‘occupied’ by an object.</p>
+<p>This particular implementation uses log-odds to represent occupancy
+proababilities; that is, instead of storing <span class="math">\(p(occupied)\)</span> directly,
+the value <span class="math">\(\frac{p(occupied)}{1 - p(occupied)}\)</span> is stored instead.
+This is for the sake of numerical stability. It should be noted, however,
+that with this representation positive values represent probabilities
+greater than 50%, and that negative values represent probabilities less
+than 50%.</p>
+<dl class="attribute">
+<dt id="occupancy_grid.OccupancyGrid.grid">
+<code class="descname">grid</code><a class="headerlink" href="#occupancy_grid.OccupancyGrid.grid" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>2-dimensional float ndarray</em> – The computed map.
+Each value in this array corresponds to a particular grid square;
+the value is the log-odds representation of the probability that
+this grid square is occupied.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="occupancy_grid.OccupancyGrid.scale">
+<code class="descname">scale</code><a class="headerlink" href="#occupancy_grid.OccupancyGrid.scale" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>float</em> – The map scale factor.
+This is the length of one grid square in reality.</p>
+</dd></dl>
+
+<p>Initialize an occupancy grid map.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>grid_scale</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a>) – The scale factor to use for this map.</li>
+<li><strong>grid_size</strong> (integer array-like, shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – The size of the region
+covered by this map, in grid squares.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="occupancy_grid.OccupancyGrid.get_occupied_cells">
+<code class="descname">get_occupied_cells</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#occupancy_grid.OccupancyGrid.get_occupied_cells" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a boolean representation of the computed map.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An array of the same shape and
+semantics as <a class="reference internal" href="#occupancy_grid.OccupancyGrid.grid" title="occupancy_grid.OccupancyGrid.grid"><code class="xref py py-attr docutils literal"><span class="pre">grid</span></code></a>, where True cells are likely to be
+occupied and False cells are likely to be free.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">2-dimensional boolean ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="occupancy_grid.OccupancyGrid.sensor_update">
+<code class="descname">sensor_update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#occupancy_grid.OccupancyGrid.sensor_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the occupancy grid with a beam-based rangefinder model.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>p0</strong> (float ndarray, shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – The start point for the beam
+measurement (i.e. the location of the rangefinder).</li>
+<li><strong>theta</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a>) – The heading of the beam measurement.</li>
+<li><strong>dist</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a>) – The actual measured distance, in real units.</li>
+<li><strong>model</strong> (float ndarray, shape <code class="docutils literal"><span class="pre">(4,)</span></code>) – The rangefinder model to use.
+See the documentation for <a class="reference internal" href="rangefinder.html#module-rangefinder" title="rangefinder"><code class="xref py py-mod docutils literal"><span class="pre">rangefinder</span></code></a> for more details.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="occupancy_grid.cells_on_line">
+<code class="descclassname">occupancy_grid.</code><code class="descname">cells_on_line</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#occupancy_grid.cells_on_line" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over all cells covered by a line segment stretching from <code class="docutils literal"><span class="pre">p0</span></code> to
+<code class="docutils literal"><span class="pre">p0+d</span></code>.</p>
+<p>The returned line can optionally be constrained to the rectangle defined
+by <code class="docutils literal"><span class="pre">g0</span></code> (as the lower-left corner) and <code class="docutils literal"><span class="pre">g1</span></code> (as the upper-right corner).
+Both corners are included in this rectangle.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>p0</strong> (ndarray of shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – The start point of the line.</li>
+<li><strong>d</strong> (ndarray of shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – The displacement of the line along
+the X and Y axes.</li>
+<li><strong>g0</strong> (ndarray of shape <code class="docutils literal"><span class="pre">(2,)</span></code>, optional) – The lower-left corner of the boundary region.</li>
+<li><strong>g1</strong> (ndarray of shape <code class="docutils literal"><span class="pre">(2,)</span></code>, optional) – The upper-right corner of the boundary region.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Yields:</th><td class="field-body"><p class="first last">integer ndarray, shape <code class="docutils literal"><span class="pre">(2,)</span></code> – The next point on the line between
+<code class="docutils literal"><span class="pre">p0</span></code> and <code class="docutils literal"><span class="pre">p0+d</span></code>.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="occupancy_grid.draw_binary_line">
+<code class="descclassname">occupancy_grid.</code><code class="descname">draw_binary_line</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#occupancy_grid.draw_binary_line" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set cells in a grid that lie on a given line to a value.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>p0</strong> (float ndarray, shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – The start point for the line.</li>
+<li><strong>p1</strong> (float ndarray, shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – The end point for the line.</li>
+<li><strong>grid</strong> (<em>2-dimensional ndarray</em>) – The grid containing cells to set.</li>
+<li><strong>value</strong> – The value to assign to cells that lie on the line.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="occupancy_grid.get_raycast_distance">
+<code class="descclassname">occupancy_grid.</code><code class="descname">get_raycast_distance</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#occupancy_grid.get_raycast_distance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform a raycast from a point, in a given direction, on a binary grid.</p>
+<p>This function computes the distance between a point and the nearest
+occupied cell in a given direction, up to a specified maximum distance.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>p0</strong> (float ndarray, shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – The start point for the raycast.</li>
+<li><strong>theta</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a>) – The direction for the raycast, in a right-handed
+coordinate system.</li>
+<li><strong>max_dist</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a>) – The maximum distance to search out for.</li>
+<li><strong>grid</strong> (<em>2-dimensional integer ndarray</em>) – The grid on which the search is
+performed; grid cells with values greater than 0 are assumed to be
+occupied.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">The distance to the closest occupied cell, or <code class="docutils literal"><span class="pre">max_dist</span></code> if
+no such cell could be found.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/3.6/library/functions.html#float" title="(in Python v3.6)">float</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="occupancy_grid.list_cells_on_line">
+<code class="descclassname">occupancy_grid.</code><code class="descname">list_cells_on_line</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#occupancy_grid.list_cells_on_line" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate and list all points along the line from <code class="docutils literal"><span class="pre">p0</span></code> to <code class="docutils literal"><span class="pre">p0+delta</span></code>.</p>
+<p>The returned line is additionally constrained to fall inside the
+rectangular region between the origin and the <code class="docutils literal"><span class="pre">boundary</span></code> point.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>p0</strong> (float memoryview shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – The start point for the line.</li>
+<li><strong>delta</strong> (float memoryview, shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – The X and Y displacement of the
+line’s other endpoint.</li>
+<li><strong>boundary</strong> (int memoryview, shape <code class="docutils literal"><span class="pre">(2,)</span></code>) – the upper-right corner of the
+boundary region, inclusive.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A 2-dimensional array containing all
+grid points covered by the line, ordered from closest to farthest.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">integer ndarray, shape <code class="docutils literal"><span class="pre">(t,</span> <span class="pre">2)</span></code></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 
 
@@ -51,13 +252,23 @@
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <p class="caption"><span class="caption-text">Contents:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="modules.html">pyswerve</a></li>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">pyswerve</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">occupancy_grid module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rangefinder.html">rangefinder module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="swerve_drive.html">swerve_drive module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="swerve_module.html">swerve_module module</a></li>
+</ul>
+</li>
 </ul>
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">pyswerve</a><ul>
+      <li>Previous: <a href="modules.html" title="previous chapter">pyswerve</a></li>
+      <li>Next: <a href="rangefinder.html" title="next chapter">rangefinder module</a></li>
+  </ul></li>
   </ul></li>
 </ul>
 </div>

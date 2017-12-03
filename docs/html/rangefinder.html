@@ -24,6 +24,8 @@
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="swerve_drive module" href="swerve_drive.html" />
+    <link rel="prev" title="occupancy_grid module" href="occupancy_grid.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -39,8 +41,162 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="rangefinder-module">
-<h1>rangefinder module<a class="headerlink" href="#rangefinder-module" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="module-rangefinder">
+<span id="rangefinder-module"></span><h1>rangefinder module<a class="headerlink" href="#module-rangefinder" title="Permalink to this headline">¶</a></h1>
+<p>Implements common logic for rangefinder sensors.</p>
+<p>Common parameters:
+<cite>mix</cite> is a vector of shape <code class="docutils literal"><span class="pre">(4,)</span></code> containing the inverse sensor model
+parameters:</p>
+<div class="math">
+\[[\alpha_{hit}, \alpha_{unexp}, \alpha_{max}, \alpha_{rand}]\]</div>
+<p>where</p>
+<div class="math">
+\[\alpha_{hit} + \alpha_{unexp} + \alpha_{max} + \alpha_{rand} = 1\]</div>
+<p>and</p>
+<div class="math">
+\[P(z_t | x_t, m)
+= [\alpha_{hit}, \alpha_{unexp}, \alpha_{max}, \alpha_{rand}]
+\cdot [p_{hit}, p_{unexp}, p_{max}, p_{rand}]\]</div>
+<p>in other words, <cite>mix</cite> defines the mixing parameters
+for a mixed distribution composed of four other distributions:</p>
+<blockquote>
+<div><ul class="simple">
+<li><span class="math">\(p_{hit}\)</span> is a Gaussian distribution centered around the expected
+distance, z_exp</li>
+<li><span class="math">\(p_{unexp}\)</span> is an exponential distribution that is cut off at
+z=z_exp</li>
+<li><span class="math">\(p_{max}\)</span> is a very narrow uniform distribution centered around the
+sensor’s maximum range.</li>
+<li><span class="math">\(p_{rand}\)</span> is a uniform distribution spread across the sensor’s
+entire range.</li>
+</ul>
+</div></blockquote>
+<p>Together, these four distributions comprise a beam-based sensor model.</p>
+<p><cite>model</cite> is a vector of shape <code class="docutils literal"><span class="pre">(4,)</span></code> containing other model parameters:</p>
+<div class="math">
+\[[\sigma_{hit}, \lambda_{short}, z_{small}, z_{max}]\]</div>
+<p>these parameters define the four distributions described above.
+(<span class="math">\(z_{small}\)</span> is the width of p_max)</p>
+<dl class="function">
+<dt id="rangefinder.learn_intrinsic_parameters">
+<code class="descclassname">rangefinder.</code><code class="descname">learn_intrinsic_parameters</code><span class="sig-paren">(</span><em>z</em>, <em>z_exp</em>, <em>model</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/rangefinder.html#learn_intrinsic_parameters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#rangefinder.learn_intrinsic_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Attempt to calculate model and mixing parameters from actual data.</p>
+<p>This attempts to estimate model and mixing parameters using a maximum-
+likelihood estimator.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>z</strong> (<em>number ndarray</em>) – A vector containing sensor measurement data.</li>
+<li><strong>z_exp</strong> (<em>number ndarray</em>) – A vector containing expected distances for
+each measurement in <code class="docutils literal"><span class="pre">z</span></code>.</li>
+<li><strong>model</strong> (number ndarray, shape <code class="docutils literal"><span class="pre">(4,)</span></code>) – An initial estimate for all
+model parameters.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A tuple containing both a model parameter vector and a mixing vector.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="rangefinder.log_lambda">
+<code class="descclassname">rangefinder.</code><code class="descname">log_lambda</code><span class="sig-paren">(</span><em>z</em>, <em>z_exp</em>, <em>model</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/rangefinder.html#log_lambda"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#rangefinder.log_lambda" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the relative log-likelihood of a map, given a rangefinder model.</p>
+<p>Specifically, this computes:</p>
+<div class="math">
+\[\log \frac{p(r=z | m)}{p(r=z | \neg m)}\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>z</strong> (<em>number</em>) – A distance measurement from the rangefinder.</li>
+<li><strong>z_exp</strong> (<em>number</em>) – The expected distance measurement from e.g. a map.</li>
+<li><strong>model</strong> – A model parameter vector.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">The relative log-likelihood of a map, given the passed
+measured and expected distances.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">number</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="rangefinder.normalize">
+<code class="descclassname">rangefinder.</code><code class="descname">normalize</code><span class="sig-paren">(</span><em>p</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/rangefinder.html#normalize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#rangefinder.normalize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Normalize all values within p.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An <code class="docutils literal"><span class="pre">ndarray</span></code> with the same size and shape as p, normalized
+such that all values fall within the range [0, 1] and sum to 1.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">ndarrray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="rangefinder.rangefinder_likelihoods">
+<code class="descclassname">rangefinder.</code><code class="descname">rangefinder_likelihoods</code><span class="sig-paren">(</span><em>z</em>, <em>z_exp</em>, <em>model</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/rangefinder.html#rangefinder_likelihoods"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#rangefinder.rangefinder_likelihoods" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute likelihoods for each distribution in the rangefinder model.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>z</strong> (<em>number</em>) – A distance measurement from the rangefinder.</li>
+<li><strong>z_exp</strong> (<em>number</em>) – The expected distance measurement from e.g. a map.</li>
+<li><strong>model</strong> – A model parameter vector.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="rangefinder.rangefinder_model">
+<code class="descclassname">rangefinder.</code><code class="descname">rangefinder_model</code><span class="sig-paren">(</span><em>z</em>, <em>z_exp</em>, <em>model</em>, <em>mix</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/rangefinder.html#rangefinder_model"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#rangefinder.rangefinder_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the likelihood of one sensor measurement,
+given model and mixing parameters, as well as the expected distance
+to an obstruction.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>z</strong> (<em>number</em>) – A distance measurement from the rangefinder.</li>
+<li><strong>z_exp</strong> (<em>number</em>) – The expected distance measurement from e.g. a map.</li>
+<li><strong>model</strong> – A model parameter vector.</li>
+<li><strong>mix</strong> – A model mixing vector.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">The probability of the sensor measurement, given the
+expected distance and model parameters.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">number</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 
 
@@ -51,13 +207,23 @@
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <p class="caption"><span class="caption-text">Contents:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="modules.html">pyswerve</a></li>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">pyswerve</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="occupancy_grid.html">occupancy_grid module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">rangefinder module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="swerve_drive.html">swerve_drive module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="swerve_module.html">swerve_module module</a></li>
+</ul>
+</li>
 </ul>
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">pyswerve</a><ul>
+      <li>Previous: <a href="occupancy_grid.html" title="previous chapter">occupancy_grid module</a></li>
+      <li>Next: <a href="swerve_drive.html" title="next chapter">swerve_drive module</a></li>
+  </ul></li>
   </ul></li>
 </ul>
 </div>

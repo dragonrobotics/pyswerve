@@ -4,6 +4,11 @@ pyswerve
 .. toctree::
    :maxdepth: 4
 
+   occ_grid_profile
+   occupancy_grid
+   occupancy_grid_display
+   rangefinder
    robot
+   setup
    swerve_drive
    swerve_module
