@@ -11,27 +11,27 @@ class SwerveModule(object):
         Performs calculations and bookkeeping for a single swerve module.
 
         Args:
-            name (string): A NetworkTables-friendly name for this swerve module.
-                Used for saving and loading configuration data.
+            name (string): A NetworkTables-friendly name for this swerve
+                module. Used for saving and loading configuration data.
             steer_id (number): The CAN ID for the Talon SRX controlling this
                 module's steering.
             drive_id (number): The CAN ID for the Talon SRX controlling this
                 module's driving.
 
         Attributes:
-            steer_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used to
-                actuate this module's steering.
-            drive_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used to
-                actuate this module's drive.
-            steer_target (number): The current target steering position for this
-                module, in radians.
+            steer_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used
+                to actuate this module's steering.
+            drive_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used
+                to actuate this module's drive.
+            steer_target (number): The current target steering position for
+                this module, in radians.
             steer_offset (number): The swerve module's steering zero position.
-                This value can be determined by manually steering a swerve module
-                so that it faces forwards relative to the chassis, and by taking
-                the raw encoder position value (ADC reading); this value is the
-                steer offset.
-            drive_reversed (boolean): Whether or not the drive motor's output is
-                currently reversed.
+                This value can be determined by manually steering a swerve
+                module so that it faces forwards relative to the chassis, and
+                by taking the raw encoder position value (ADC reading); this
+                value is the steer offset.
+            drive_reversed (boolean): Whether or not the drive motor's output
+                is currently reversed.
         """
         self.steer_talon = CANTalon(steer_id)
         self.drive_talon = CANTalon(drive_id)

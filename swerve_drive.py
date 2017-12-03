@@ -67,8 +67,10 @@ class SwerveDrive(object):
         (for now) assumed to fall within the range [0, 1].
 
         Args:
-            forward (number): The desired, relative forward motion of the robot.
-            strafe (number): The desired, relative sideways motion of the robot.
+            forward (number): The desired, relative forward motion of the
+                robot.
+            strafe (number): The desired, relative sideways motion of the
+                robot.
             rotate_cw (number): The desired rotational speed of the robot.
         """
         a = (strafe - rotate_cw) * (self.length / self.radius)
