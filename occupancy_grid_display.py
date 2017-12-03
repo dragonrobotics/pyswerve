@@ -6,7 +6,6 @@ import math
 import sys
 import numpy as np
 import pygame
-from pygame.locals import *
 import occupancy_grid
 
 grid_size = (600, 600)
@@ -65,12 +64,12 @@ while True:
     dt = clock.tick(60)  # ms
 
     for event in pygame.event.get():
-        if event.type == QUIT:
+        if event.type == pygame.QUIT:
             sys.exit(0)
-        elif event.type == KEYDOWN:
-            if event.key == K_ESCAPE:
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
                 sys.exit(0)
-            elif event.key == K_SPACE:
+            elif event.key == pygame.K_SPACE:
                 sensor_sweeping = not sensor_sweeping
 
     if sensor_sweeping:

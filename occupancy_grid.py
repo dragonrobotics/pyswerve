@@ -95,7 +95,6 @@ class OccupancyGrid(object):
             model
         )
 
-
         for i in range(cell_matx.shape[0]):
             cell = cell_matx[i]
             self.grid[int(cell[0])][int(cell[1])] += modifiers[i]
