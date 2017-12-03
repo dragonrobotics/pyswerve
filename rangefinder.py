@@ -37,16 +37,23 @@ dist_cmp_thrs = 1  # distance comparison threshold
 
 def normalize(p):
     """
-    Normalize all values within p such that they fall within the range
-    [0, 1] and sum to 1.
+    Normalize all values within p.
+
+    Returns:
+        ndarrray: An ``ndarray`` with the same size and shape as p, normalized
+            such that all values fall within the range [0, 1] and sum to 1.
     """
     return p / np.sum(p)
 
 
 def rangefinder_likelihoods(z, z_exp, model):
     """
-    Compute likelihoods for each distribution that comprises the
-    rangefinder model.
+    Compute likelihoods for each distribution in the rangefinder model.
+
+    Args:
+        z (number): A distance measurement from the rangefinder.
+        z_exp (number): The expected distance measurement from e.g. a map.
+        model: A model parameter vector.
     """
     v_hit = model[0]**2  # sigma_hit**2
 
@@ -75,7 +82,20 @@ def rangefinder_likelihoods(z, z_exp, model):
 
 def log_lambda(z, z_exp, model):
     """
-    Compute log[p(r=z | m) / p(r=z | not m)] given a rangefinder model.
+    Compute the relative log-likelihood of a map, given a rangefinder model.
+
+    Specifically, this computes:
+    .. math::
+        \\log \\frac{p(r=z | m)}{p(r=z | \\neg m)}
+
+    Args:
+        z (number): A distance measurement from the rangefinder.
+        z_exp (number): The expected distance measurement from e.g. a map.
+        model: A model parameter vector.
+
+    Returns:
+        number: The relative log-likelihood of a map, given the passed
+            measured and expected distances.
     """
 
     v_hit = model[0]**2  # sigma_hit**2
@@ -100,6 +120,16 @@ def rangefinder_model(z, z_exp, model, mix):
     Calculate the likelihood of one sensor measurement,
     given model and mixing parameters, as well as the expected distance
     to an obstruction.
+
+    Args:
+        z (number): A distance measurement from the rangefinder.
+        z_exp (number): The expected distance measurement from e.g. a map.
+        model: A model parameter vector.
+        mix: A model mixing vector.
+
+    Returns:
+        number: The probability of the sensor measurement, given the
+        expected distance and model parameters.
     """
 
     p = rangefinder_likelihoods(z, z_exp, model)
@@ -110,10 +140,18 @@ def learn_intrinsic_parameters(z, z_exp, model):
     """
     Attempt to calculate model and mixing parameters from actual data.
 
-    `model` in this case is an initial estimate for the parameters.
+    This attempts to estimate model and mixing parameters using a maximum-
+    likelihood estimator.
 
-    This function returns both model parameters and mixing parameters
-    (in that order.)
+    Args:
+        z (number ndarray): A vector containing sensor measurement data.
+        z_exp (number ndarray): A vector containing expected distances for
+            each measurement in `z`.
+        model (number ndarray, shape (4,)): An initial estimate for all
+            model parameters.
+
+    Returns:
+        A tuple containing both a model parameter vector and a mixing vector.
     """
 
     current_mix = np.zeros([4])
