@@ -1,0 +1,263 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>swerve_module module &#8212; pyswerve 0.1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="swerve_drive module" href="swerve_drive.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-swerve_module">
+<span id="swerve-module-module"></span><h1>swerve_module module<a class="headerlink" href="#module-swerve_module" title="Permalink to this headline">¶</a></h1>
+<p>Implements common logic for swerve modules.</p>
+<dl class="class">
+<dt id="swerve_module.SwerveModule">
+<em class="property">class </em><code class="descclassname">swerve_module.</code><code class="descname">SwerveModule</code><span class="sig-paren">(</span><em>name</em>, <em>steer_id</em>, <em>drive_id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Performs calculations and bookkeeping for a single swerve module.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/2/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) – A NetworkTables-friendly name for this swerve module.
+Used for saving and loading configuration data.</li>
+<li><strong>steer_id</strong> (<em>number</em>) – The CAN ID for the Talon SRX controlling this
+module’s steering.</li>
+<li><strong>drive_id</strong> (<em>number</em>) – The CAN ID for the Talon SRX controlling this
+module’s driving.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="swerve_module.SwerveModule.steer_talon">
+<code class="descname">steer_talon</code><a class="headerlink" href="#swerve_module.SwerveModule.steer_talon" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference external" href="https://robotpy-ctre.readthedocs.io/en/latest/api.html#ctre.cantalon.CANTalon" title="(in RobotPy CTRE v2017.0)"><code class="xref py py-class docutils literal"><span class="pre">ctre.cantalon.CANTalon</span></code></a> – The Talon SRX used to
+actuate this module’s steering.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="swerve_module.SwerveModule.drive_talon">
+<code class="descname">drive_talon</code><a class="headerlink" href="#swerve_module.SwerveModule.drive_talon" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference external" href="https://robotpy-ctre.readthedocs.io/en/latest/api.html#ctre.cantalon.CANTalon" title="(in RobotPy CTRE v2017.0)"><code class="xref py py-class docutils literal"><span class="pre">ctre.cantalon.CANTalon</span></code></a> – The Talon SRX used to
+actuate this module’s drive.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="swerve_module.SwerveModule.steer_target">
+<code class="descname">steer_target</code><a class="headerlink" href="#swerve_module.SwerveModule.steer_target" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>number</em> – The current target steering position for this
+module, in radians.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="swerve_module.SwerveModule.steer_offset">
+<code class="descname">steer_offset</code><a class="headerlink" href="#swerve_module.SwerveModule.steer_offset" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>number</em> – The swerve module’s steering zero position.
+This value can be determined by manually steering a swerve module
+so that it faces forwards relative to the chassis, and by taking
+the raw encoder position value (ADC reading); this value is the
+steer offset.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="swerve_module.SwerveModule.drive_reversed">
+<code class="descname">drive_reversed</code><a class="headerlink" href="#swerve_module.SwerveModule.drive_reversed" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>boolean</em> – Whether or not the drive motor’s output is
+currently reversed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_module.SwerveModule.apply_control_values">
+<code class="descname">apply_control_values</code><span class="sig-paren">(</span><em>angle_radians</em>, <em>percent_speed</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule.apply_control_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule.apply_control_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set a steering angle and a drive speed simultaneously.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>angle_radians</strong> (<em>number</em>) – The desired angle to steer towards.</li>
+<li><strong>percent_speed</strong> (<em>number</em>) – The desired percentage speed to drive at.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p class="last"><a class="reference internal" href="#swerve_module.SwerveModule.set_drive_speed" title="swerve_module.SwerveModule.set_drive_speed"><code class="xref py py-func docutils literal"><span class="pre">set_drive_speed()</span></code></a> and <a class="reference internal" href="#swerve_module.SwerveModule.set_steer_angle" title="swerve_module.SwerveModule.set_steer_angle"><code class="xref py py-func docutils literal"><span class="pre">set_steer_angle()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_module.SwerveModule.get_steer_angle">
+<code class="descname">get_steer_angle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule.get_steer_angle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule.get_steer_angle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the current angular position of the swerve module in
+radians.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_module.SwerveModule.load_config_values">
+<code class="descname">load_config_values</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule.load_config_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule.load_config_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load saved configuration values for this module via WPILib’s
+Preferences interface.</p>
+<p>The key names are derived from the name passed to the
+constructor.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_module.SwerveModule.save_config_values">
+<code class="descname">save_config_values</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule.save_config_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule.save_config_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save configuration values for this module via WPILib’s
+Preferences interface.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_module.SwerveModule.set_drive_speed">
+<code class="descname">set_drive_speed</code><span class="sig-paren">(</span><em>percent_speed</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule.set_drive_speed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule.set_drive_speed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Drive the swerve module wheels at a given percentage of
+maximum power or speed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>percent_speed</strong> (<em>number</em>) – The speed to drive the module at, expressed
+as a percentage of maximum speed. Negative values drive in
+reverse.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_module.SwerveModule.set_steer_angle">
+<code class="descname">set_steer_angle</code><span class="sig-paren">(</span><em>angle_radians</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule.set_steer_angle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule.set_steer_angle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Steer the swerve module to the given angle in radians.
+<cite>angle_radians</cite> should be within [-2pi, 2pi].</p>
+<p>This method attempts to find the shortest path to the given
+steering angle; thus, it may in actuality servo to the
+position opposite the passed angle and reverse the drive
+direction.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>angle_radians</strong> (<em>number</em>) – The angle to steer towards in radians,
+where 0 points in the chassis forward direction.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_module.SwerveModule.update_smart_dashboard">
+<code class="descname">update_smart_dashboard</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule.update_smart_dashboard"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule.update_smart_dashboard" title="Permalink to this definition">¶</a></dt>
+<dd><p>Push various pieces of info to the Smart Dashboard.</p>
+<p>This method calls to NetworkTables (eventually), thus it may
+be _slow_.</p>
+<p>As of right now, this displays the current raw absolute encoder reading
+from the steer Talon, and the current target steer position.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">pyswerve</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="swerve_drive.html">swerve_drive module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">swerve_module module</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">pyswerve</a><ul>
+      <li>Previous: <a href="swerve_drive.html" title="previous chapter">swerve_drive module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/swerve_module.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Dragon Robotics 5002.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/swerve_module.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

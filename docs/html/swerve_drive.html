@@ -1,0 +1,210 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>swerve_drive module &#8212; pyswerve 0.1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="swerve_module module" href="swerve_module.html" />
+    <link rel="prev" title="pyswerve" href="modules.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-swerve_drive">
+<span id="swerve-drive-module"></span><h1>swerve_drive module<a class="headerlink" href="#module-swerve_drive" title="Permalink to this headline">¶</a></h1>
+<p>Implements a full swerve drive.</p>
+<dl class="class">
+<dt id="swerve_drive.SwerveDrive">
+<em class="property">class </em><code class="descclassname">swerve_drive.</code><code class="descname">SwerveDrive</code><span class="sig-paren">(</span><em>length</em>, <em>width</em>, <em>config_tuples</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_drive.html#SwerveDrive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_drive.SwerveDrive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Controls a set of SwerveModules as a coherent drivetrain.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>length</strong> (<em>number</em>) – The length of the chassis.</li>
+<li><strong>width</strong> (<em>number</em>) – The width of the chassis.</li>
+<li><strong>config_tuples</strong> – <p>a list of 3-element tuples of the form
+<code class="docutils literal"><span class="pre">(name,</span> <span class="pre">steer_id,</span> <span class="pre">drive_id)</span></code> where:</p>
+<ul>
+<li><cite>name</cite> is a human-friendly module name (used for loading
+and saving config values)</li>
+<li><cite>steer_id</cite> and <cite>drive_id</cite> are the CAN IDs for each
+module’s steer and drive motor controllers (Talons).</li>
+</ul>
+<p>See also <a class="reference internal" href="swerve_module.html#swerve_module.SwerveModule" title="swerve_module.SwerveModule"><code class="xref py py-class docutils literal"><span class="pre">swerve_module.SwerveModule</span></code></a>.</p>
+</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>The order of the tuples within <code class="docutils literal"><span class="pre">config_tuples</span></code> _does_ matter.
+To be specific, the configurations are assumed to be within the
+following order:</p>
+<ol class="arabic simple">
+<li>back-right swerve module</li>
+<li>back-left swerve module</li>
+<li>front-right swerve module</li>
+<li>front-left swerve module</li>
+</ol>
+<p class="last">The choice of units for the dimensions of the chassis does not
+matter, as long as they are the <em>same</em> units.</p>
+</div>
+<dl class="attribute">
+<dt id="swerve_drive.SwerveDrive.modules">
+<code class="descname">modules</code><a class="headerlink" href="#swerve_drive.SwerveDrive.modules" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list containing each <a class="reference internal" href="swerve_module.html#swerve_module.SwerveModule" title="swerve_module.SwerveModule"><code class="xref py py-class docutils literal"><span class="pre">swerve_module.SwerveModule</span></code></a>
+in this drive.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="swerve_drive.SwerveDrive.radius">
+<code class="descname">radius</code><a class="headerlink" href="#swerve_drive.SwerveDrive.radius" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>number</em> – The length of the chassis diagonal.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="swerve_drive.SwerveDrive.sd_update_timer">
+<code class="descname">sd_update_timer</code><a class="headerlink" href="#swerve_drive.SwerveDrive.sd_update_timer" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference external" href="https://robotpy.readthedocs.io/projects/wpilib/en/latest/wpilib/Timer.html#wpilib.timer.Timer" title="(in RobotPy WPILib vmaster)"><code class="xref py py-class docutils literal"><span class="pre">wpilib.timer.Timer</span></code></a> – A timer, used to
+limit the rate at which SmartDashboard is updated.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_drive.SwerveDrive.drive">
+<code class="descname">drive</code><span class="sig-paren">(</span><em>forward</em>, <em>strafe</em>, <em>rotate_cw</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_drive.html#SwerveDrive.drive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_drive.SwerveDrive.drive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute and apply module angles and speeds to achieve a given
+linear / angular velocity.</p>
+<p>All control inputs (arguments) are assumed to be in a robot
+oriented reference frame. In addition, all values are
+(for now) assumed to fall within the range [0, 1].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>forward</strong> (<em>number</em>) – The desired, relative forward motion of the robot.</li>
+<li><strong>strafe</strong> (<em>number</em>) – The desired, relative sideways motion of the robot.</li>
+<li><strong>rotate_cw</strong> (<em>number</em>) – The desired rotational speed of the robot.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_drive.SwerveDrive.save_config_values">
+<code class="descname">save_config_values</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_drive.html#SwerveDrive.save_config_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_drive.SwerveDrive.save_config_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save configuration values for all modules within this swerve drive.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="swerve_drive.SwerveDrive.update_smart_dashboard">
+<code class="descname">update_smart_dashboard</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_drive.html#SwerveDrive.update_smart_dashboard"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_drive.SwerveDrive.update_smart_dashboard" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update Smart Dashboard for all modules within this swerve drive.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">pyswerve</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">swerve_drive module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="swerve_module.html">swerve_module module</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">pyswerve</a><ul>
+      <li>Previous: <a href="modules.html" title="previous chapter">pyswerve</a></li>
+      <li>Next: <a href="swerve_module.html" title="next chapter">swerve_module module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/swerve_drive.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Dragon Robotics 5002.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/swerve_drive.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
