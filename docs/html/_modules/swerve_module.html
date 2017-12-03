@@ -1,0 +1,264 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>swerve_module &#8212; pyswerve 0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for swerve_module</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implements common logic for swerve modules.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">ctre.cantalon</span> <span class="k">import</span> <span class="n">CANTalon</span>
+<span class="kn">import</span> <span class="nn">wpilib</span>
+<span class="kn">import</span> <span class="nn">math</span>
+
+
+<div class="viewcode-block" id="SwerveModule"><a class="viewcode-back" href="../swerve_module.html#swerve_module.SwerveModule">[docs]</a><span class="k">class</span> <span class="nc">SwerveModule</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">steer_id</span><span class="p">,</span> <span class="n">drive_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Performs calculations and bookkeeping for a single swerve module.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): A NetworkTables-friendly name for this swerve</span>
+<span class="sd">                module. Used for saving and loading configuration data.</span>
+<span class="sd">            steer_id (number): The CAN ID for the Talon SRX controlling this</span>
+<span class="sd">                module&#39;s steering.</span>
+<span class="sd">            drive_id (number): The CAN ID for the Talon SRX controlling this</span>
+<span class="sd">                module&#39;s driving.</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            steer_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used</span>
+<span class="sd">                to actuate this module&#39;s steering.</span>
+<span class="sd">            drive_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used</span>
+<span class="sd">                to actuate this module&#39;s drive.</span>
+<span class="sd">            steer_target (number): The current target steering position for</span>
+<span class="sd">                this module, in radians.</span>
+<span class="sd">            steer_offset (number): The swerve module&#39;s steering zero position.</span>
+<span class="sd">                This value can be determined by manually steering a swerve</span>
+<span class="sd">                module so that it faces forwards relative to the chassis, and</span>
+<span class="sd">                by taking the raw encoder position value (ADC reading); this</span>
+<span class="sd">                value is the steer offset.</span>
+<span class="sd">            drive_reversed (boolean): Whether or not the drive motor&#39;s output</span>
+<span class="sd">                is currently reversed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span> <span class="o">=</span> <span class="n">CANTalon</span><span class="p">(</span><span class="n">steer_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">drive_talon</span> <span class="o">=</span> <span class="n">CANTalon</span><span class="p">(</span><span class="n">drive_id</span><span class="p">)</span>
+
+        <span class="c1"># Configure steering motors to use abs. encoders</span>
+        <span class="c1"># and closed-loop control</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span><span class="o">.</span><span class="n">changeControlMode</span><span class="p">(</span><span class="n">CANTalon</span><span class="o">.</span><span class="n">ControlMode</span><span class="o">.</span><span class="n">Position</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span><span class="o">.</span><span class="n">setFeedbackDevice</span><span class="p">(</span><span class="n">CANTalon</span><span class="o">.</span><span class="n">FeedbackDevice</span><span class="o">.</span><span class="n">AnalogEncoder</span><span class="p">)</span>  <span class="c1"># noqa: E501</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span><span class="o">.</span><span class="n">setProfile</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steer_target</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_config_values</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SwerveModule.load_config_values"><a class="viewcode-back" href="../swerve_module.html#swerve_module.SwerveModule.load_config_values">[docs]</a>    <span class="k">def</span> <span class="nf">load_config_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load saved configuration values for this module via WPILib&#39;s</span>
+<span class="sd">        Preferences interface.</span>
+
+<span class="sd">        The key names are derived from the name passed to the</span>
+<span class="sd">        constructor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">preferences</span> <span class="o">=</span> <span class="n">wpilib</span><span class="o">.</span><span class="n">Preferences</span><span class="o">.</span><span class="n">getInstance</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">steer_offset</span> <span class="o">=</span> <span class="n">preferences</span><span class="o">.</span><span class="n">getFloat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s1">&#39;-offset&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">drive_reversed</span> <span class="o">=</span> <span class="n">preferences</span><span class="o">.</span><span class="n">getBoolean</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s1">&#39;-reversed&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SwerveModule.save_config_values"><a class="viewcode-back" href="../swerve_module.html#swerve_module.SwerveModule.save_config_values">[docs]</a>    <span class="k">def</span> <span class="nf">save_config_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save configuration values for this module via WPILib&#39;s</span>
+<span class="sd">        Preferences interface.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">preferences</span> <span class="o">=</span> <span class="n">wpilib</span><span class="o">.</span><span class="n">Preferences</span><span class="o">.</span><span class="n">getInstance</span><span class="p">()</span>
+
+        <span class="n">preferences</span><span class="o">.</span><span class="n">putFloat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s1">&#39;-offset&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">steer_offset</span><span class="p">)</span>
+        <span class="n">preferences</span><span class="o">.</span><span class="n">putBoolean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s1">&#39;-reversed&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">drive_reversed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SwerveModule.get_steer_angle"><a class="viewcode-back" href="../swerve_module.html#swerve_module.SwerveModule.get_steer_angle">[docs]</a>    <span class="k">def</span> <span class="nf">get_steer_angle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the current angular position of the swerve module in</span>
+<span class="sd">        radians.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">native_units</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">native_units</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">steer_offset</span><span class="p">)</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">512</span></div>
+
+<div class="viewcode-block" id="SwerveModule.set_steer_angle"><a class="viewcode-back" href="../swerve_module.html#swerve_module.SwerveModule.set_steer_angle">[docs]</a>    <span class="k">def</span> <span class="nf">set_steer_angle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">angle_radians</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Steer the swerve module to the given angle in radians.</span>
+<span class="sd">        `angle_radians` should be within :math:`[-2\\pi, 2\\pi]`.</span>
+
+<span class="sd">        This method attempts to find the shortest path to the given</span>
+<span class="sd">        steering angle; thus, it may in actuality servo to the</span>
+<span class="sd">        position opposite the passed angle and reverse the drive</span>
+<span class="sd">        direction.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            angle_radians (number): The angle to steer towards in radians,</span>
+<span class="sd">                where 0 points in the chassis forward direction.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># normalize negative angles</span>
+        <span class="k">if</span> <span class="n">angle_radians</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">angle_radians</span> <span class="o">+=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+
+        <span class="c1"># get current steering angle, normalized to [0, 2pi)</span>
+        <span class="n">local_angle</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">steer_offset</span><span class="p">)</span> <span class="o">%</span> <span class="mi">1024</span>
+        <span class="n">local_angle</span> <span class="o">*=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">512</span>
+
+        <span class="c1"># Shortest-path servoing</span>
+        <span class="n">should_reverse_drive</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">local_angle</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">and</span> <span class="n">angle_radians</span> <span class="o">&gt;</span> <span class="p">(</span><span class="mi">3</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="c1"># Q1 -&gt; Q4 transition: subtract 1 full rotation from target angle</span>
+            <span class="n">angle_radians</span> <span class="o">-=</span> <span class="mi">2</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+        <span class="k">elif</span> <span class="n">local_angle</span> <span class="o">&gt;</span> <span class="p">(</span><span class="mi">3</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">and</span> <span class="n">angle_radians</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="c1"># Q4 -&gt; Q1 transition: add 1 full rotation to target angle</span>
+            <span class="n">angle_radians</span> <span class="o">+=</span> <span class="mi">2</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+        <span class="k">elif</span> <span class="n">angle_radians</span> <span class="o">-</span> <span class="n">local_angle</span> <span class="o">&gt;=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># shortest path is to move to opposite angle and reverse drive dir</span>
+            <span class="n">angle_radians</span> <span class="o">-=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+            <span class="n">should_reverse_drive</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="n">angle_radians</span> <span class="o">-</span> <span class="n">local_angle</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="c1"># same as above</span>
+            <span class="n">angle_radians</span> <span class="o">+=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+            <span class="n">should_reverse_drive</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Adjust steer target to add to number of rotations of module thus far</span>
+        <span class="n">n_rotations</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">trunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="o">/</span> <span class="mi">1024</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steer_target</span> <span class="o">=</span> <span class="n">angle_radians</span> <span class="o">+</span> <span class="p">(</span><span class="n">n_rotations</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+
+        <span class="c1"># Compute and send actual target to motor controller</span>
+        <span class="n">native_units</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steer_target</span> <span class="o">*</span> <span class="mi">512</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">steer_offset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">native_units</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">should_reverse_drive</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">drive_reversed</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">drive_reversed</span></div>
+
+<div class="viewcode-block" id="SwerveModule.set_drive_speed"><a class="viewcode-back" href="../swerve_module.html#swerve_module.SwerveModule.set_drive_speed">[docs]</a>    <span class="k">def</span> <span class="nf">set_drive_speed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">percent_speed</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Drive the swerve module wheels at a given percentage of</span>
+<span class="sd">        maximum power or speed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            percent_speed (number): The speed to drive the module at, expressed</span>
+<span class="sd">                as a percentage of maximum speed. Negative values drive in</span>
+<span class="sd">                reverse.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">drive_reversed</span><span class="p">:</span>
+            <span class="n">percent_speed</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">drive_talon</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">percent_speed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SwerveModule.apply_control_values"><a class="viewcode-back" href="../swerve_module.html#swerve_module.SwerveModule.apply_control_values">[docs]</a>    <span class="k">def</span> <span class="nf">apply_control_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">angle_radians</span><span class="p">,</span> <span class="n">percent_speed</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set a steering angle and a drive speed simultaneously.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            angle_radians (number): The desired angle to steer towards.</span>
+<span class="sd">            percent_speed (number): The desired percentage speed to drive at.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~set_drive_speed` and :func:`~set_steer_angle`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_steer_angle</span><span class="p">(</span><span class="n">angle_radians</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_drive_speed</span><span class="p">(</span><span class="n">percent_speed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SwerveModule.update_smart_dashboard"><a class="viewcode-back" href="../swerve_module.html#swerve_module.SwerveModule.update_smart_dashboard">[docs]</a>    <span class="k">def</span> <span class="nf">update_smart_dashboard</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Push various pieces of info to the Smart Dashboard.</span>
+
+<span class="sd">        This method calls to NetworkTables (eventually), thus it may</span>
+<span class="sd">        be _slow_.</span>
+
+<span class="sd">        As of right now, this displays the current raw absolute encoder reading</span>
+<span class="sd">        from the steer Talon, and the current target steer position.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">wpilib</span><span class="o">.</span><span class="n">SmartDashboard</span><span class="o">.</span><span class="n">putNumber</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s1">&#39; Position&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+        <span class="n">wpilib</span><span class="o">.</span><span class="n">SmartDashboard</span><span class="o">.</span><span class="n">putNumber</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s1">&#39; Target&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">steer_target</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">pyswerve</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Dragon Robotics 5002.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

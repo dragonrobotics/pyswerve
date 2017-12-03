@@ -1,0 +1,7 @@
+occupancy\_grid module
+======================
+
+.. automodule:: occupancy_grid
+    :members:
+    :undoc-members:
+    :show-inheritance:
