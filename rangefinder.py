@@ -2,30 +2,47 @@
 Implements common logic for rangefinder sensors.
 
 Common parameters:
-`mix` is a vector of shape (4,) containing the inverse sensor model
+`mix` is a vector of shape ``(4,)`` containing the inverse sensor model
 parameters:
-    [a_hit, a_unexp, a_max, a_rand]
+
+.. math::
+
+    [\\alpha_{hit}, \\alpha_{unexp}, \\alpha_{max}, \\alpha_{rand}]
+
 where
-    a_hit + a_unexp + a_max + a_rand = 1
+
+.. math::
+
+    \\alpha_{hit} + \\alpha_{unexp} + \\alpha_{max} + \\alpha_{rand} = 1
+
 and
+
+.. math::
+
     P(z_t | x_t, m)
-    = [a_hit, a_unexp, a_max, a_rand] * [p_hit, p_unexp, p_max, p_rand]
+    = [\\alpha_{hit}, \\alpha_{unexp}, \\alpha_{max}, \\alpha_{rand}]
+    \\cdot [p_{hit}, p_{unexp}, p_{max}, p_{rand}]
+
 in other words, `mix` defines the mixing parameters
 for a mixed distribution composed of four other distributions:
-    - p_hit is a Gaussian distribution centered around the expected
+    - :math:`p_{hit}` is a Gaussian distribution centered around the expected
       distance, z_exp
-    - p_unexp is an exponential distribution that is cut off at
+    - :math:`p_{unexp}` is an exponential distribution that is cut off at
       z=z_exp
-    - p_max is a very narrow uniform distribution centered around the
+    - :math:`p_{max}` is a very narrow uniform distribution centered around the
       sensor's maximum range.
-    - p_rand is a uniform distribution spread across the sensor's
+    - :math:`p_{rand}` is a uniform distribution spread across the sensor's
       entire range.
 Together, these four distributions comprise a beam-based sensor model.
 
-`model` is a vector of shape (4,) containing other model parameters:
-    [sigma_hit, lambda_short, z_small, max_range]
+`model` is a vector of shape ``(4,)`` containing other model parameters:
+
+.. math::
+
+    [\\sigma_{hit}, \\lambda_{short}, z_{small}, z_{max}]
+
 these parameters define the four distributions described above.
-(z_small is the width of p_max)
+(:math:`z_{small}` is the width of p_max)
 """
 
 import math
@@ -41,7 +58,7 @@ def normalize(p):
 
     Returns:
         ndarrray: An ``ndarray`` with the same size and shape as p, normalized
-            such that all values fall within the range [0, 1] and sum to 1.
+        such that all values fall within the range [0, 1] and sum to 1.
     """
     return p / np.sum(p)
 
@@ -85,7 +102,9 @@ def log_lambda(z, z_exp, model):
     Compute the relative log-likelihood of a map, given a rangefinder model.
 
     Specifically, this computes:
+
     .. math::
+
         \\log \\frac{p(r=z | m)}{p(r=z | \\neg m)}
 
     Args:
@@ -95,7 +114,7 @@ def log_lambda(z, z_exp, model):
 
     Returns:
         number: The relative log-likelihood of a map, given the passed
-            measured and expected distances.
+        measured and expected distances.
     """
 
     v_hit = model[0]**2  # sigma_hit**2
@@ -146,8 +165,8 @@ def learn_intrinsic_parameters(z, z_exp, model):
     Args:
         z (number ndarray): A vector containing sensor measurement data.
         z_exp (number ndarray): A vector containing expected distances for
-            each measurement in `z`.
-        model (number ndarray, shape (4,)): An initial estimate for all
+            each measurement in ``z``.
+        model (number ndarray, shape ``(4,)``): An initial estimate for all
             model parameters.
 
     Returns:
