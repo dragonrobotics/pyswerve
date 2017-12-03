@@ -8,37 +8,44 @@ from swerve_module import SwerveModule
 
 
 class SwerveDrive(object):
-    """
-    Controls a set of SwerveModules as a coherent drivetrain.
-    """
-
-    # config_tuples is a list of tuples of the form (name, steer_id, drive_id)
-    # where each value is passed to the SwerveModule constructor in that order
     def __init__(self, length, width, config_tuples):
         """
-        Creates a new Swerve Drive instance.
+        Controls a set of SwerveModules as a coherent drivetrain.
 
-        `length` and `width` are the dimensions of the chassis; choice
-        of units does not matter (as long as they are the same units).
+        Args:
+            length (number): The length of the chassis.
+            width (number): The width of the chassis.
+            config_tuples: a list of 3-element tuples of the form
+                ``(name, steer_id, drive_id)`` where:
 
-        `config_tuples` is a list of 3-element tuples of the form:
-        `(name, steer_id, drive_id)` where:
-         * `name` is a human-friendly module name (used for loading
-            and saving config values)
-         * `steer_id` and `drive_id` are the CAN IDs for each module's
-            steer and drive motor controllers (Talons).
+                *   `name` is a human-friendly module name (used for loading
+                    and saving config values)
+                *   `steer_id` and `drive_id` are the CAN IDs for each
+                    module's steer and drive motor controllers (Talons).
 
-        For more details, see the `__init__` method for `SwerveModule`,
-        in `swerve_module.py`.
+                See also :class:`swerve_module.SwerveModule`.
 
-        The order of the tuples within `config_tuples` _does_ matter.
-        To be specific, the configurations are assumed to be within the
-        following order:
-         1. back-right swerve module
-         2. back-left swerve module
-         3. front-right swerve module
-         4. front-left swerve module
+        Note:
+            The order of the tuples within ``config_tuples`` *does* matter.
+            To be specific, the configurations are assumed to be within the
+            following order:
+
+            1. back-right swerve module
+            2. back-left swerve module
+            3. front-right swerve module
+            4. front-left swerve module
+
+            The choice of units for the dimensions of the chassis does not
+            matter, as long as they are the *same* units.
+
+        Attributes:
+            modules: A list containing each :class:`swerve_module.SwerveModule`
+                in this drive.
+            radius (number): The length of the chassis diagonal.
+            sd_update_timer (:class:`wpilib.timer.Timer`): A timer, used to
+                limit the rate at which SmartDashboard is updated.
         """
+
         self.modules = []
         for config in config_tuples:
             self.modules.append(SwerveModule(*config))
@@ -58,6 +65,13 @@ class SwerveDrive(object):
         All control inputs (arguments) are assumed to be in a robot
         oriented reference frame. In addition, all values are
         (for now) assumed to fall within the range [0, 1].
+
+        Args:
+            forward (number): The desired, relative forward motion of the
+                robot.
+            strafe (number): The desired, relative sideways motion of the
+                robot.
+            rotate_cw (number): The desired rotational speed of the robot.
         """
         a = (strafe - rotate_cw) * (self.length / self.radius)
         b = (strafe + rotate_cw) * (self.length / self.radius)

@@ -3,3 +3,5 @@ robotpy-ctre
 numpy
 flake8
 cython
+sphinx
+sphinxcontrib-fulltoc
