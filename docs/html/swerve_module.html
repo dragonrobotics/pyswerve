@@ -53,8 +53,8 @@
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/2/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) – A NetworkTables-friendly name for this swerve module.
-Used for saving and loading configuration data.</li>
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/2/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) – A NetworkTables-friendly name for this swerve
+module. Used for saving and loading configuration data.</li>
 <li><strong>steer_id</strong> (<em>number</em>) – The CAN ID for the Talon SRX controlling this
 module’s steering.</li>
 <li><strong>drive_id</strong> (<em>number</em>) – The CAN ID for the Talon SRX controlling this
@@ -67,39 +67,39 @@ module’s driving.</li>
 <dl class="attribute">
 <dt id="swerve_module.SwerveModule.steer_talon">
 <code class="descname">steer_talon</code><a class="headerlink" href="#swerve_module.SwerveModule.steer_talon" title="Permalink to this definition">¶</a></dt>
-<dd><p><a class="reference external" href="https://robotpy-ctre.readthedocs.io/en/latest/api.html#ctre.cantalon.CANTalon" title="(in RobotPy CTRE v2017.0)"><code class="xref py py-class docutils literal"><span class="pre">ctre.cantalon.CANTalon</span></code></a> – The Talon SRX used to
-actuate this module’s steering.</p>
+<dd><p><a class="reference external" href="https://robotpy-ctre.readthedocs.io/en/latest/api.html#ctre.cantalon.CANTalon" title="(in RobotPy CTRE v2017.0)"><code class="xref py py-class docutils literal"><span class="pre">ctre.cantalon.CANTalon</span></code></a> – The Talon SRX used
+to actuate this module’s steering.</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="swerve_module.SwerveModule.drive_talon">
 <code class="descname">drive_talon</code><a class="headerlink" href="#swerve_module.SwerveModule.drive_talon" title="Permalink to this definition">¶</a></dt>
-<dd><p><a class="reference external" href="https://robotpy-ctre.readthedocs.io/en/latest/api.html#ctre.cantalon.CANTalon" title="(in RobotPy CTRE v2017.0)"><code class="xref py py-class docutils literal"><span class="pre">ctre.cantalon.CANTalon</span></code></a> – The Talon SRX used to
-actuate this module’s drive.</p>
+<dd><p><a class="reference external" href="https://robotpy-ctre.readthedocs.io/en/latest/api.html#ctre.cantalon.CANTalon" title="(in RobotPy CTRE v2017.0)"><code class="xref py py-class docutils literal"><span class="pre">ctre.cantalon.CANTalon</span></code></a> – The Talon SRX used
+to actuate this module’s drive.</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="swerve_module.SwerveModule.steer_target">
 <code class="descname">steer_target</code><a class="headerlink" href="#swerve_module.SwerveModule.steer_target" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>number</em> – The current target steering position for this
-module, in radians.</p>
+<dd><p><em>number</em> – The current target steering position for
+this module, in radians.</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="swerve_module.SwerveModule.steer_offset">
 <code class="descname">steer_offset</code><a class="headerlink" href="#swerve_module.SwerveModule.steer_offset" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>number</em> – The swerve module’s steering zero position.
-This value can be determined by manually steering a swerve module
-so that it faces forwards relative to the chassis, and by taking
-the raw encoder position value (ADC reading); this value is the
-steer offset.</p>
+This value can be determined by manually steering a swerve
+module so that it faces forwards relative to the chassis, and
+by taking the raw encoder position value (ADC reading); this
+value is the steer offset.</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="swerve_module.SwerveModule.drive_reversed">
 <code class="descname">drive_reversed</code><a class="headerlink" href="#swerve_module.SwerveModule.drive_reversed" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>boolean</em> – Whether or not the drive motor’s output is
-currently reversed.</p>
+<dd><p><em>boolean</em> – Whether or not the drive motor’s output
+is currently reversed.</p>
 </dd></dl>
 
 <dl class="method">

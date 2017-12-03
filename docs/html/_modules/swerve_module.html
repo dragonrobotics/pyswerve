@@ -53,27 +53,27 @@
 <span class="sd">        Performs calculations and bookkeeping for a single swerve module.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name (string): A NetworkTables-friendly name for this swerve module.</span>
-<span class="sd">                Used for saving and loading configuration data.</span>
+<span class="sd">            name (string): A NetworkTables-friendly name for this swerve</span>
+<span class="sd">                module. Used for saving and loading configuration data.</span>
 <span class="sd">            steer_id (number): The CAN ID for the Talon SRX controlling this</span>
 <span class="sd">                module&#39;s steering.</span>
 <span class="sd">            drive_id (number): The CAN ID for the Talon SRX controlling this</span>
 <span class="sd">                module&#39;s driving.</span>
 
 <span class="sd">        Attributes:</span>
-<span class="sd">            steer_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used to</span>
-<span class="sd">                actuate this module&#39;s steering.</span>
-<span class="sd">            drive_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used to</span>
-<span class="sd">                actuate this module&#39;s drive.</span>
-<span class="sd">            steer_target (number): The current target steering position for this</span>
-<span class="sd">                module, in radians.</span>
+<span class="sd">            steer_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used</span>
+<span class="sd">                to actuate this module&#39;s steering.</span>
+<span class="sd">            drive_talon (:class:`ctre.cantalon.CANTalon`): The Talon SRX used</span>
+<span class="sd">                to actuate this module&#39;s drive.</span>
+<span class="sd">            steer_target (number): The current target steering position for</span>
+<span class="sd">                this module, in radians.</span>
 <span class="sd">            steer_offset (number): The swerve module&#39;s steering zero position.</span>
-<span class="sd">                This value can be determined by manually steering a swerve module</span>
-<span class="sd">                so that it faces forwards relative to the chassis, and by taking</span>
-<span class="sd">                the raw encoder position value (ADC reading); this value is the</span>
-<span class="sd">                steer offset.</span>
-<span class="sd">            drive_reversed (boolean): Whether or not the drive motor&#39;s output is</span>
-<span class="sd">                currently reversed.</span>
+<span class="sd">                This value can be determined by manually steering a swerve</span>
+<span class="sd">                module so that it faces forwards relative to the chassis, and</span>
+<span class="sd">                by taking the raw encoder position value (ADC reading); this</span>
+<span class="sd">                value is the steer offset.</span>
+<span class="sd">            drive_reversed (boolean): Whether or not the drive motor&#39;s output</span>
+<span class="sd">                is currently reversed.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">steer_talon</span> <span class="o">=</span> <span class="n">CANTalon</span><span class="p">(</span><span class="n">steer_id</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">drive_talon</span> <span class="o">=</span> <span class="n">CANTalon</span><span class="p">(</span><span class="n">drive_id</span><span class="p">)</span>
