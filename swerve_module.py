@@ -11,7 +11,7 @@ class SwerveModule(object):
         Performs calculations and bookkeeping for a single swerve module.
 
         Args:
-            name (string): A NetworkTables-friendly name for this swerve
+            name (str): A NetworkTables-friendly name for this swerve
                 module. Used for saving and loading configuration data.
             steer_id (number): The CAN ID for the Talon SRX controlling this
                 module's steering.
@@ -82,7 +82,7 @@ class SwerveModule(object):
     def set_steer_angle(self, angle_radians):
         """
         Steer the swerve module to the given angle in radians.
-        `angle_radians` should be within [-2pi, 2pi].
+        `angle_radians` should be within :math:`[-2\\pi, 2\\pi]`.
 
         This method attempts to find the shortest path to the given
         steering angle; thus, it may in actuality servo to the

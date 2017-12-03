@@ -53,7 +53,7 @@
 <span class="sd">        Performs calculations and bookkeeping for a single swerve module.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name (string): A NetworkTables-friendly name for this swerve</span>
+<span class="sd">            name (str): A NetworkTables-friendly name for this swerve</span>
 <span class="sd">                module. Used for saving and loading configuration data.</span>
 <span class="sd">            steer_id (number): The CAN ID for the Talon SRX controlling this</span>
 <span class="sd">                module&#39;s steering.</span>
@@ -124,7 +124,7 @@
 <div class="viewcode-block" id="SwerveModule.set_steer_angle"><a class="viewcode-back" href="../swerve_module.html#swerve_module.SwerveModule.set_steer_angle">[docs]</a>    <span class="k">def</span> <span class="nf">set_steer_angle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">angle_radians</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Steer the swerve module to the given angle in radians.</span>
-<span class="sd">        `angle_radians` should be within [-2pi, 2pi].</span>
+<span class="sd">        `angle_radians` should be within :math:`[-2\\pi, 2\\pi]`.</span>
 
 <span class="sd">        This method attempts to find the shortest path to the given</span>
 <span class="sd">        steering angle; thus, it may in actuality servo to the</span>

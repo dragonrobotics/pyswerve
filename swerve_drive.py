@@ -26,7 +26,7 @@ class SwerveDrive(object):
                 See also :class:`swerve_module.SwerveModule`.
 
         Note:
-            The order of the tuples within ``config_tuples`` _does_ matter.
+            The order of the tuples within ``config_tuples`` *does* matter.
             To be specific, the configurations are assumed to be within the
             following order:
 

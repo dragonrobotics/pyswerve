@@ -46,14 +46,14 @@
 <dl class="class">
 <dt id="swerve_module.SwerveModule">
 <em class="property">class </em><code class="descclassname">swerve_module.</code><code class="descname">SwerveModule</code><span class="sig-paren">(</span><em>name</em>, <em>steer_id</em>, <em>drive_id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3.6/library/functions.html#object" title="(in Python v3.6)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
 <p>Performs calculations and bookkeeping for a single swerve module.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/2/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) – A NetworkTables-friendly name for this swerve
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – A NetworkTables-friendly name for this swerve
 module. Used for saving and loading configuration data.</li>
 <li><strong>steer_id</strong> (<em>number</em>) – The CAN ID for the Talon SRX controlling this
 module’s steering.</li>
@@ -168,7 +168,7 @@ reverse.</td>
 <dt id="swerve_module.SwerveModule.set_steer_angle">
 <code class="descname">set_steer_angle</code><span class="sig-paren">(</span><em>angle_radians</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/swerve_module.html#SwerveModule.set_steer_angle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#swerve_module.SwerveModule.set_steer_angle" title="Permalink to this definition">¶</a></dt>
 <dd><p>Steer the swerve module to the given angle in radians.
-<cite>angle_radians</cite> should be within [-2pi, 2pi].</p>
+<cite>angle_radians</cite> should be within <span class="math">\([-2\pi, 2\pi]\)</span>.</p>
 <p>This method attempts to find the shortest path to the given
 steering angle; thus, it may in actuality servo to the
 position opposite the passed angle and reverse the drive

@@ -168,7 +168,7 @@ texinfo_documents = [
 
 
 intersphinx_mapping = {
-    'python': ('https://docs.python.org', None),
+    'python': ('https://docs.python.org/3.6/', None),
     'ctre': ('https://robotpy-ctre.readthedocs.io/en/latest/', None),
     'wpilib': ('https://robotpy.readthedocs.io/projects/wpilib/en/latest/', None),
     'pyfrc': ('https://pyfrc.readthedocs.io/en/stable/', None),
