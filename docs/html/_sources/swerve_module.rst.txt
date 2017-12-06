@@ -1,0 +1,7 @@
+swerve\_module module
+=====================
+
+.. automodule:: swerve_module
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,7 @@
+rangefinder module
+==================
+
+.. automodule:: rangefinder
+    :members:
+    :undoc-members:
+    :show-inheritance:
