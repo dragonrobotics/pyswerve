@@ -88,7 +88,7 @@ class Robot(wpilib.IterativeRobot):
             self.encoder_value_sets[idx] = [talon.getAnalogInRaw(), None, None]
             self.last_encoder_values[idx] = talon.getAnalogInRaw()
             self.talon_sweeping[idx] = True
-            talon.set(1.0 if not self.talon_id_set[idx][2] else -1.0)
+            talon.set(0.1 if not self.talon_id_set[idx][2] else -0.1)
 
     def autonomousPeriodic(self):
         # Sweep through and get min/max encoder values

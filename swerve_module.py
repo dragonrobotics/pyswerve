@@ -5,6 +5,10 @@ import wpilib
 import math
 
 
+# Set to true to add safety margin to steer ranges
+_apply_range_hack = True
+
+
 class SwerveModule(object):
     def __init__(self, name, steer_id, drive_id):
         """
@@ -41,11 +45,11 @@ class SwerveModule(object):
         self.steer_talon.changeControlMode(CANTalon.ControlMode.Position)
         self.steer_talon.setFeedbackDevice(CANTalon.FeedbackDevice.AnalogEncoder)  # noqa: E501
         self.steer_talon.setProfile(0)
+        self.steer_talon.setPosition(0)  # clear upper bits of position
 
         self.name = name
         self.steer_target = 0
-        self.steer_min = 0
-        self.steer_max = 1024
+        self.steer_target_native = 0
 
         self.load_config_values()
 
@@ -60,11 +64,30 @@ class SwerveModule(object):
         preferences = wpilib.Preferences.getInstance()
 
         self.steer_offset = preferences.getFloat(self.name+'-offset', 0)
-        self.steer_min = preferences.getFloat(self.name+'-min', 0)
-        self.steer_max = preferences.getFloat(self.name+'-max', 1024)
+        if _apply_range_hack:
+            self.steer_min = preferences.getFloat(self.name+'-min', 0)
+            self.steer_max = preferences.getFloat(self.name+'-max', 1024)
+            actual_steer_range = int(self.steer_max - self.steer_min)
+
+            self.steer_min += int(actual_steer_range * 0.01)
+            self.steer_max -= int(actual_steer_range * 0.01)
+
+            self.steer_offset -= self.steer_min
+            self.steer_range = int(self.steer_max - self.steer_min)
+        else:
+            self.steer_min = 0
+            self.steer_max = 1024
+            self.steer_range = 1024
+
         self.drive_reversed = preferences.getBoolean(
             self.name+'-reversed', False
         )
+
+        self.steer_reversed = preferences.getBoolean(
+            self.name+'-steer-reversed', False
+        )
+
+        self.steer_talon.reverseOutput(self.steer_reversed)
 
     def save_config_values(self):
         """
@@ -74,9 +97,11 @@ class SwerveModule(object):
         preferences = wpilib.Preferences.getInstance()
 
         preferences.putFloat(self.name+'-offset', self.steer_offset)
-        preferences.putFloat(self.name+'-min', self.steer_min)
-        preferences.putFloat(self.name+'-max', self.steer_max)
         preferences.putBoolean(self.name+'-reversed', self.drive_reversed)
+
+        if _apply_range_hack:
+            preferences.putFloat(self.name+'-min', self.steer_min)
+            preferences.putFloat(self.name+'-max', self.steer_max)
 
     def get_steer_angle(self):
         """
@@ -87,7 +112,7 @@ class SwerveModule(object):
         native_units -= self.steer_offset
 
         # Position in rotations
-        rotation_pos = native_units / (self.steer_max - self.steer_min)
+        rotation_pos = native_units / self.steer_range
 
         return rotation_pos * 2 * math.pi
 
@@ -106,14 +131,19 @@ class SwerveModule(object):
                 where 0 points in the chassis forward direction.
         """
         # normalize negative angles
-        if angle_radians < 0:
-            angle_radians += 2 * math.pi
+        #if angle_radians < 0:
+        #    angle_radians += 2 * math.pi
 
         # get current steering angle, normalized to [0, 2pi)
-        steer_range = int(self.steer_max - self.steer_min)
+        #steer_range = int(self.steer_max - self.steer_min)
 
-        local_angle = int(self.steer_talon.get() - self.steer_offset) % steer_range
-        local_angle *= (2*math.pi) / steer_range
+
+        if _apply_range_hack:
+            local_angle = int(self.steer_talon.get() - self.steer_offset) % self.steer_range
+            local_angle *= (2*math.pi) / self.steer_range
+        else:
+            local_angle = int(self.steer_talon.get() - self.steer_offset) % 1024
+            local_angle *= math.pi / 512
 
         # Shortest-path servoing
         should_reverse_drive = False
@@ -133,14 +163,33 @@ class SwerveModule(object):
             should_reverse_drive = True
 
         # Adjust steer target to add to number of rotations of module thus far
-        n_rotations = math.trunc(self.steer_talon.get() / steer_range)
-        self.steer_target = angle_radians + (n_rotations * 2 * math.pi)
+        if _apply_range_hack:
+            n_rotations = math.trunc(self.steer_talon.get() / self.steer_range)
+            self.steer_target = angle_radians + (n_rotations * 2 * math.pi)
+        else:
+            n_rotations = math.trunc(self.steer_talon.get() / 1024)
+            self.steer_target = angle_radians + (n_rotations * 2 * math.pi)
 
-        # Compute and send actual target to motor controller
         native_units = (
-            self.steer_target * (steer_range / (2*math.pi))
+            (self.steer_target * (self.steer_range / (2*math.pi)))
             + self.steer_offset
         )
+
+        # Compute and send actual target to motor controller
+        if _apply_range_hack:
+            native_units += + self.steer_min
+
+            if native_units > self.steer_max:
+                native_units -= self.steer_range
+            elif native_units < self.steer_min:
+                native_units += self.steer_range
+
+            if angle_radians >= 0:
+                native_units += (n_rotations << 10)
+            else:
+                native_units += ((n_rotations-1) << 10)
+
+        self.steer_target_native = native_units
         self.steer_talon.set(native_units)
 
         if should_reverse_drive:
@@ -187,4 +236,9 @@ class SwerveModule(object):
         """
         wpilib.SmartDashboard.putNumber(
             self.name+' Position', self.steer_talon.get())
-        wpilib.SmartDashboard.putNumber(self.name+' Target', self.steer_target)
+
+        wpilib.SmartDashboard.putNumber(
+            self.name+' ADC', self.steer_talon.getAnalogInRaw())
+
+        wpilib.SmartDashboard.putNumber(self.name+' Target', self.steer_target_native)
+        wpilib.SmartDashboard.putNumber(self.name+' Steer Error', self.steer_talon.getClosedLoopError())

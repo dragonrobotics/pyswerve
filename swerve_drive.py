@@ -89,7 +89,7 @@ class SwerveDrive(object):
 
         # back-right, back-left, front-right, front-left?
         for module, angle, speed in zip(self.modules, angles, speeds):
-            module.apply_control_values(angle, speed)
+            module.apply_control_values(angle, 0.0)
 
     def save_config_values(self):
         """
@@ -98,10 +98,17 @@ class SwerveDrive(object):
         for module in self.modules:
             module.save_config_values()
 
+    def load_config_values(self):
+        """
+        Load configuration values for all modules within this swerve drive.
+        """
+        for module in self.modules:
+            module.load_config_values()
+
     def update_smart_dashboard(self):
         """
         Update Smart Dashboard for all modules within this swerve drive.
         """
-        if self.sd_update_timer.hasPeriodPassed(0.25):
-            for module in self.modules:
-                module.update_smart_dashboard()
+        #if self.sd_update_timer.hasPeriodPassed(0.25):
+        for module in self.modules:
+            module.update_smart_dashboard()

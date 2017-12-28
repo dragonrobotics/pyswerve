@@ -29,6 +29,7 @@ class Robot(wpilib.IterativeRobot):
             self.chassis_width,
             self.swerve_config
         )
+
         try:
             self.navx = AHRS.create_spi()
             self.navx.reset()
@@ -36,10 +37,26 @@ class Robot(wpilib.IterativeRobot):
             print("Caught exception while trying to initialize AHRS: "+e.args)
             self.navx = None
 
+    def disabledInit(self):
+        self.drivetrain.load_config_values()
+
+    def disabledPeriodic(self):
+        self.drivetrain.update_smart_dashboard()
+
+    def autonomousInit(self):
+        self.drivetrain.load_config_values()
+
+    def autonomousPeriodic(self):
+        self.drivetrain.drive(1, 0, 0)
+        self.drivetrain.update_smart_dashboard()
+
+    def teleopInit(self):
+        self.drivetrain.load_config_values()
+
     def teleopPeriodic(self):
         ctrl = np.array([
-            self.control_stick.getAxis(0),
-            self.control_stick.getAxis(1)
+            self.control_stick.getAxis(1) * -1,
+            self.control_stick.getAxis(0)
         ])
 
         if (self.navx is not None and
