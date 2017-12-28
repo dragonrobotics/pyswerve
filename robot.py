@@ -8,10 +8,10 @@ import numpy as np
 
 class Robot(wpilib.IterativeRobot):
     swerve_config = [
-        ('swerve-backright', 4, 2),
-        ('swerve-backleft', 1, 19),
-        ('swerve-frontright', 13, 12),
-        ('swerve-frontleft', 10, 15),
+        ('Back Right', 15, 12),
+        ('Back Left', 4, 10),
+        ('Front Right', 1, 2),
+        ('Front Left', 5, 13),
     ]
 
     chassis_length = 24.69

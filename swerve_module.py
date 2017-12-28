@@ -44,6 +44,8 @@ class SwerveModule(object):
 
         self.name = name
         self.steer_target = 0
+        self.steer_min = 0
+        self.steer_max = 1024
 
         self.load_config_values()
 
@@ -58,8 +60,11 @@ class SwerveModule(object):
         preferences = wpilib.Preferences.getInstance()
 
         self.steer_offset = preferences.getFloat(self.name+'-offset', 0)
+        self.steer_min = preferences.getFloat(self.name+'-min', 0)
+        self.steer_max = preferences.getFloat(self.name+'-max', 1024)
         self.drive_reversed = preferences.getBoolean(
-            self.name+'-reversed', False)
+            self.name+'-reversed', False
+        )
 
     def save_config_values(self):
         """
@@ -69,6 +74,8 @@ class SwerveModule(object):
         preferences = wpilib.Preferences.getInstance()
 
         preferences.putFloat(self.name+'-offset', self.steer_offset)
+        preferences.putFloat(self.name+'-min', self.steer_min)
+        preferences.putFloat(self.name+'-max', self.steer_max)
         preferences.putBoolean(self.name+'-reversed', self.drive_reversed)
 
     def get_steer_angle(self):
@@ -77,7 +84,12 @@ class SwerveModule(object):
         radians.
         """
         native_units = self.steer_talon.get()
-        return (native_units - self.steer_offset) * math.pi / 512
+        native_units -= self.steer_offset
+
+        # Position in rotations
+        rotation_pos = native_units / (self.steer_max - self.steer_min)
+
+        return rotation_pos * 2 * math.pi
 
     def set_steer_angle(self, angle_radians):
         """
@@ -98,8 +110,10 @@ class SwerveModule(object):
             angle_radians += 2 * math.pi
 
         # get current steering angle, normalized to [0, 2pi)
-        local_angle = (self.steer_talon.get() - self.steer_offset) % 1024
-        local_angle *= math.pi / 512
+        steer_range = int(self.steer_max - self.steer_min)
+
+        local_angle = int(self.steer_talon.get() - self.steer_offset) % steer_range
+        local_angle *= (2*math.pi) / steer_range
 
         # Shortest-path servoing
         should_reverse_drive = False
@@ -119,11 +133,14 @@ class SwerveModule(object):
             should_reverse_drive = True
 
         # Adjust steer target to add to number of rotations of module thus far
-        n_rotations = math.trunc(self.steer_talon.get() / 1024)
+        n_rotations = math.trunc(self.steer_talon.get() / steer_range)
         self.steer_target = angle_radians + (n_rotations * 2 * math.pi)
 
         # Compute and send actual target to motor controller
-        native_units = (self.steer_target * 512 / math.pi) + self.steer_offset
+        native_units = (
+            self.steer_target * (steer_range / (2*math.pi))
+            + self.steer_offset
+        )
         self.steer_talon.set(native_units)
 
         if should_reverse_drive:
