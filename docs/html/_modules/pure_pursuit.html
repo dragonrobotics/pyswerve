@@ -1,0 +1,465 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pure_pursuit &#8212; pyswerve 0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pure_pursuit</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;A Python implementation of the Pure Pursuit controller.</span>
+
+<span class="sd">This module implements a basic pure pursuit controller, allowing for</span>
+<span class="sd">smooth, stable navigation of the robot using waypoints, as opposed to,</span>
+<span class="sd">say, specific timings.</span>
+
+<span class="sd">A reliable source of robot pose / position information is required to</span>
+<span class="sd">effectively use pure pursuit control. In addition, logic for converting</span>
+<span class="sd">computed goal points to steering / motor commands is beyond the scope</span>
+<span class="sd">of this module.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">_machine_eps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span>
+<span class="n">_angle_cmp_tol</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>  <span class="c1"># angle comparison tolerance</span>
+
+
+<span class="k">def</span> <span class="nf">_extract_location</span><span class="p">(</span><span class="n">robot_pose</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert a robot-pose 9-vector to a robot location 2-vector.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">robot_pose</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">robot_pose</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">robot_pose</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]])</span>
+    <span class="k">elif</span> <span class="n">robot_pose</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">robot_pose</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">robot_pose</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+
+
+<span class="c1"># NOTE: using the dot product does _not_ work here.</span>
+<span class="c1"># using the dot product here leads to nothing but sadness and pain.</span>
+<span class="k">def</span> <span class="nf">_angle_between</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Take the signed angle between two vectors.</span>
+
+<span class="sd">    This acts like a heading comparison; for example,</span>
+<span class="sd">    `_angle_between([1, 0], [1, -1]) = -45 degrees`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">a1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">v1</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">v1</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">a2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">v2</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">v2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">a2</span> <span class="o">-</span> <span class="n">a1</span>
+
+
+<span class="k">def</span> <span class="nf">_segment_is_relevant</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Test whether the segment starting at node i in node_list is</span>
+<span class="sd">    relevant, given the current robot position.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">segment</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="n">q1</span> <span class="o">=</span> <span class="n">robot_loc</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">q2</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">robot_loc</span>
+
+    <span class="n">a1</span> <span class="o">=</span> <span class="n">_angle_between</span><span class="p">(</span><span class="n">segment</span><span class="p">,</span> <span class="n">q1</span><span class="p">)</span>
+    <span class="n">a2</span> <span class="o">=</span> <span class="n">_angle_between</span><span class="p">(</span><span class="n">segment</span><span class="p">,</span> <span class="n">q2</span><span class="p">)</span>
+
+    <span class="n">theta</span> <span class="o">=</span> <span class="n">_angle_between</span><span class="p">(</span>
+        <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">],</span>
+        <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="p">)</span>
+
+    <span class="n">beta</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a1</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">_angle_cmp_tol</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">a2</span> <span class="o">&lt;=</span> <span class="n">_angle_cmp_tol</span> <span class="ow">and</span> <span class="n">beta</span> <span class="o">&gt;</span> <span class="o">-</span><span class="n">_angle_cmp_tol</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="p">(</span><span class="n">a2</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="n">_angle_cmp_tol</span> <span class="ow">and</span> <span class="n">beta</span> <span class="o">&lt;</span> <span class="n">_angle_cmp_tol</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a2</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>  <span class="c1"># Case I</span>
+        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a2</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>  <span class="c1"># Case II</span>
+        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a2</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">_angle_cmp_tol</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>  <span class="c1"># Case III</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># Case II</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span>  <span class="c1"># Case IV</span>
+
+
+<span class="c1"># i == currently relevant segment / node index</span>
+<span class="k">def</span> <span class="nf">_projected_location</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find the closest point from the robot on the path, given the</span>
+<span class="sd">    current relevant segment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">segment</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="n">q1</span> <span class="o">=</span> <span class="n">robot_loc</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">q2</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">robot_loc</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">a2</span> <span class="o">=</span> <span class="n">_angle_between</span><span class="p">(</span><span class="n">segment</span><span class="p">,</span> <span class="n">q2</span><span class="p">)</span>
+        <span class="n">next_segment</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">theta</span> <span class="o">=</span> <span class="n">_angle_between</span><span class="p">(</span><span class="n">segment</span><span class="p">,</span> <span class="n">next_segment</span><span class="p">)</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">/</span> <span class="mi">2</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">a2</span> <span class="o">&lt;=</span> <span class="n">_angle_cmp_tol</span> <span class="ow">and</span> <span class="n">beta</span> <span class="o">&gt;</span> <span class="o">-</span><span class="n">_angle_cmp_tol</span><span class="p">)</span>
+                <span class="ow">or</span> <span class="p">(</span><span class="n">a2</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="n">_angle_cmp_tol</span> <span class="ow">and</span> <span class="n">beta</span> <span class="o">&lt;</span> <span class="n">_angle_cmp_tol</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a2</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">_angle_cmp_tol</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># dead zone; select corner point as position</span>
+
+    <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q1</span> <span class="o">*</span> <span class="n">segment</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">segment</span> <span class="o">*</span> <span class="n">segment</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">t</span> <span class="o">*</span> <span class="n">segment</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_cross_track_error</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find the closest distance between the robot and the path, given</span>
+<span class="sd">    the current relevant segment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">segment</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">q2</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">robot_loc</span>
+        <span class="n">a2</span> <span class="o">=</span> <span class="n">_angle_between</span><span class="p">(</span><span class="n">segment</span><span class="p">,</span> <span class="n">q2</span><span class="p">)</span>
+        <span class="n">next_segment</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">theta</span> <span class="o">=</span> <span class="n">_angle_between</span><span class="p">(</span><span class="n">segment</span><span class="p">,</span> <span class="n">next_segment</span><span class="p">)</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">/</span> <span class="mi">2</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">a2</span> <span class="o">&lt;=</span> <span class="n">_angle_cmp_tol</span> <span class="ow">and</span> <span class="n">beta</span> <span class="o">&gt;</span> <span class="o">-</span><span class="n">_angle_cmp_tol</span><span class="p">)</span>
+                <span class="ow">or</span> <span class="p">(</span><span class="n">a2</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="n">_angle_cmp_tol</span> <span class="ow">and</span> <span class="n">beta</span> <span class="o">&lt;</span> <span class="n">_angle_cmp_tol</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a2</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">_angle_cmp_tol</span>
+        <span class="p">):</span>
+            <span class="c1"># dead zone case</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">robot_loc</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="n">q1</span> <span class="o">=</span> <span class="n">robot_loc</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">a1</span> <span class="o">=</span> <span class="n">_angle_between</span><span class="p">(</span><span class="n">segment</span><span class="p">,</span> <span class="n">q1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q1</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">a1</span><span class="p">))</span>
+
+
+<span class="c1"># Runs whenever a new path is sent to the controller.</span>
+<span class="c1"># Returns an index to initialize all other searches from.</span>
+<span class="k">def</span> <span class="nf">_presearch</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Search for the relevant segment with least cross-track error; this</span>
+<span class="sd">    is used to initialize the controller on receipt of a new path.</span>
+
+<span class="sd">    This returns an index into node_list; subsequent calls to</span>
+<span class="sd">    `_find_goal_point` should use this the intial `search_start_idx`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># find relevant segment with least cross-track error</span>
+    <span class="n">relevant_segments</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">_cross_track_error</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">i</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span>
+            <span class="ow">and</span> <span class="n">_segment_is_relevant</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+        <span class="p">)]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">relevant_segments</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># this happens when the beginning and end of a path are the same point</span>
+        <span class="c1"># or when you have 90 degree turns along paths</span>
+        <span class="c1"># play it safe, just return node 0 for the index</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;No relevant path segments found in presearch&quot;</span><span class="p">,</span>
+            <span class="ne">RuntimeWarning</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="n">smallest_err</span> <span class="o">=</span> <span class="n">relevant_segments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">segment</span> <span class="ow">in</span> <span class="n">relevant_segments</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">segment</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">smallest_err</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">smallest_err</span> <span class="o">=</span> <span class="n">segment</span>
+
+    <span class="k">return</span> <span class="n">smallest_err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">_find_goal_point</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">lookahead_dist</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">search_start_idx</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find a goal point for pure pursuit control.</span>
+
+<span class="sd">    Returns a tuple; the first element will be the goal point</span>
+<span class="sd">    (as a 2-vector), and the second element will be the latest relevant</span>
+<span class="sd">    segment, which should be passed as search_start_idx in subsequent</span>
+<span class="sd">    calls. The remaining elements, if present, are debug data and have</span>
+<span class="sd">    no defined semantics.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># goal_tuple[2]:</span>
+    <span class="c1">#  0 = 1st Node outside Virtual Circle</span>
+    <span class="c1">#  1 = 2 Intersection Points</span>
+    <span class="c1">#  2 = No Intersection Points or Goal Point Dead Zone</span>
+    <span class="c1">#  3 = Common Case (1 Intersection Point)</span>
+    <span class="c1">#  4 = Segment Extended to Infinity</span>
+    <span class="c1"># Find first relevant segment:</span>
+    <span class="n">relevant_segment</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">search_start_idx</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span><span class="o">-</span><span class="mi">2</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">_segment_is_relevant</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+            <span class="n">relevant_segment</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">break</span>
+
+    <span class="k">if</span> <span class="n">relevant_segment</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">relevant_segment</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span>
+
+    <span class="n">projected_pos</span> <span class="o">=</span> <span class="n">_projected_location</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">relevant_segment</span><span class="p">)</span>
+    <span class="n">x_track_err</span> <span class="o">=</span> <span class="n">_cross_track_error</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">relevant_segment</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">relevant_segment</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">segment</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">q1</span> <span class="o">=</span> <span class="n">robot_loc</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">q2</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">robot_loc</span>
+        <span class="n">a1</span> <span class="o">=</span> <span class="n">_angle_between</span><span class="p">(</span><span class="n">segment</span><span class="p">,</span> <span class="n">q1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q1</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="n">lookahead_dist</span>
+            <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q2</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="n">lookahead_dist</span>
+            <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">node_list</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># 1st node outside virtual circle</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">relevant_segment</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">segment</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="n">q1</span> <span class="o">=</span> <span class="n">robot_loc</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">q2</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">robot_loc</span>
+
+        <span class="n">magn_q1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q1</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">magn_q2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q2</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">segment_len</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">segment</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">magn_q1</span> <span class="o">&lt;=</span> <span class="n">lookahead_dist</span> <span class="ow">and</span> <span class="n">magn_q2</span> <span class="o">&gt;=</span> <span class="n">lookahead_dist</span><span class="p">:</span>
+            <span class="c1"># common case</span>
+            <span class="k">if</span> <span class="n">magn_q1</span> <span class="o">&lt;=</span> <span class="n">_machine_eps</span><span class="p">:</span>
+                <span class="n">magn_q1</span> <span class="o">=</span> <span class="mf">0.00001</span>  <span class="c1"># very hack-ish but keeps things from breaking  # noqa: E501</span>
+
+            <span class="n">cos_y</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q2</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q1</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">segment</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+                <span class="o">/</span> <span class="p">(</span><span class="o">-</span><span class="mi">2</span> <span class="o">*</span> <span class="n">segment_len</span> <span class="o">*</span> <span class="n">magn_q1</span><span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="n">p</span> <span class="o">=</span> <span class="p">(</span><span class="n">magn_q1</span> <span class="o">*</span> <span class="n">cos_y</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q1</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">cos_y</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">+</span> <span class="p">(</span><span class="n">lookahead_dist</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+            <span class="n">goal_tuple</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">node_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">p</span> <span class="o">*</span> <span class="n">segment</span> <span class="o">/</span> <span class="n">segment_len</span><span class="p">),</span>
+                <span class="n">relevant_segment</span><span class="p">,</span>
+                <span class="mi">3</span>
+            <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">goal_tuple</span>
+        <span class="k">elif</span> <span class="p">(</span>
+            <span class="n">i</span> <span class="o">==</span> <span class="n">relevant_segment</span>
+            <span class="ow">and</span> <span class="n">magn_q1</span> <span class="o">&gt;=</span> <span class="n">lookahead_dist</span>
+            <span class="ow">and</span> <span class="n">magn_q2</span> <span class="o">&gt;=</span> <span class="n">lookahead_dist</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="n">x_track_err</span> <span class="o">&lt;</span> <span class="n">lookahead_dist</span><span class="p">:</span>
+                <span class="c1"># 2 intersection points</span>
+                <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">lookahead_dist</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">x_track_err</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+                <span class="n">goal_tuple</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">projected_pos</span> <span class="o">+</span> <span class="n">segment</span><span class="o">*</span><span class="p">(</span><span class="n">p</span> <span class="o">/</span> <span class="n">segment_len</span><span class="p">),</span>
+                    <span class="n">relevant_segment</span><span class="p">,</span>
+                    <span class="mi">1</span>
+                <span class="p">)</span>
+
+                <span class="k">return</span> <span class="n">goal_tuple</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># no intersection points case and/or dead zone case</span>
+                <span class="c1"># find closest point on path</span>
+                <span class="n">current_xerr</span> <span class="o">=</span> <span class="n">x_track_err</span>
+                <span class="n">selected_node</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="k">for</span> <span class="n">i2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">search_start_idx</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span><span class="o">-</span><span class="mi">2</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">_segment_is_relevant</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">i2</span><span class="p">):</span>
+                        <span class="n">xerr</span> <span class="o">=</span> <span class="n">_cross_track_error</span><span class="p">(</span>
+                            <span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">i2</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">xerr</span> <span class="o">&lt;</span> <span class="n">current_xerr</span><span class="p">:</span>
+                            <span class="n">selected_node</span> <span class="o">=</span> <span class="n">i2</span>
+                            <span class="n">current_xerr</span> <span class="o">=</span> <span class="n">xerr</span>
+
+                <span class="n">p2</span> <span class="o">=</span> <span class="n">projected_pos</span> <span class="o">=</span> <span class="n">_projected_location</span><span class="p">(</span>
+                    <span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="n">selected_node</span><span class="p">)</span>
+
+                <span class="n">goal_tuple</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">p2</span><span class="p">,</span>
+                    <span class="n">selected_node</span><span class="p">,</span>
+                    <span class="mi">2</span>
+                <span class="p">)</span>
+
+                <span class="k">return</span> <span class="n">goal_tuple</span>
+        <span class="c1"># else go to next segment</span>
+
+    <span class="k">if</span> <span class="n">relevant_segment</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="c1"># Extend last segment to infinity if necessary</span>
+        <span class="n">segment</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">node_list</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">segment_len</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">segment</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="n">q2</span> <span class="o">=</span> <span class="n">node_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">robot_loc</span>
+        <span class="n">magn_q2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q2</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="n">_cross_track_error</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">node_list</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">magn_q2</span> <span class="o">&lt;</span> <span class="n">lookahead_dist</span><span class="p">:</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">lookahead_dist</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">eps</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+            <span class="n">goal_tuple</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">projected_pos</span> <span class="o">+</span> <span class="p">(</span><span class="n">p</span> <span class="o">*</span> <span class="n">segment</span> <span class="o">/</span> <span class="n">segment_len</span><span class="p">),</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span>
+                <span class="mi">4</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">goal_tuple</span>
+
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Could not find goal point?&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PurePursuitController"><a class="viewcode-back" href="../pure_pursuit.html#pure_pursuit.PurePursuitController">[docs]</a><span class="k">class</span> <span class="nc">PurePursuitController</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Keeps state for a Pure Pursuit Controller.&quot;&quot;&quot;</span>
+    <span class="n">node_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">search_start_index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">end_of_path</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookahead_dist</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lookahead_dist</span> <span class="o">=</span> <span class="n">lookahead_dist</span>
+
+<div class="viewcode-block" id="PurePursuitController.reached_end_of_path"><a class="viewcode-back" href="../pure_pursuit.html#pure_pursuit.PurePursuitController.reached_end_of_path">[docs]</a>    <span class="k">def</span> <span class="nf">reached_end_of_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Test whether the robot is approaching the end of the path,</span>
+<span class="sd">        based on the last call to `get_goal_point`.</span>
+
+<span class="sd">        Note that this does not neccesarily mean the robot actually</span>
+<span class="sd">        _has_ reached the end of the path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_of_path</span></div>
+
+<div class="viewcode-block" id="PurePursuitController.get_goal_point"><a class="viewcode-back" href="../pure_pursuit.html#pure_pursuit.PurePursuitController.get_goal_point">[docs]</a>    <span class="k">def</span> <span class="nf">get_goal_point</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">robot_pose</span><span class="p">,</span> <span class="n">debug_info</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the next goal point, given a previously set path and the</span>
+<span class="sd">        current robot position.</span>
+
+<span class="sd">        This returns a point (2-vector) by default; however, if</span>
+<span class="sd">        debug_info is True, this will also return the full</span>
+<span class="sd">        tuple of values from `_find_goal_point`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">robot_loc</span> <span class="o">=</span> <span class="n">_extract_location</span><span class="p">(</span><span class="n">robot_pose</span><span class="p">)</span>
+        <span class="n">goal_tuple</span> <span class="o">=</span> <span class="n">_find_goal_point</span><span class="p">(</span>
+            <span class="n">robot_loc</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lookahead_dist</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">node_list</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">search_start_index</span>
+        <span class="p">)</span>
+
+        <span class="n">goal_point</span> <span class="o">=</span> <span class="n">goal_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">search_start_index</span> <span class="o">=</span> <span class="n">goal_tuple</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">search_start_index</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">node_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">q2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">robot_loc</span>
+            <span class="n">magn_q2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">q2</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">magn_q2</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">lookahead_dist</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">end_of_path</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">debug_info</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">goal_point</span><span class="p">,</span> <span class="n">goal_tuple</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">goal_point</span></div>
+
+<div class="viewcode-block" id="PurePursuitController.set_path"><a class="viewcode-back" href="../pure_pursuit.html#pure_pursuit.PurePursuitController.set_path">[docs]</a>    <span class="k">def</span> <span class="nf">set_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_path</span><span class="p">,</span> <span class="n">robot_pose</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets a new path for the controller.</span>
+
+<span class="sd">        new_path should be a list of 2-vectors (shape (2,)).</span>
+<span class="sd">        robot_pose is the current robot pose as a 9-element vector.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">robot_loc</span> <span class="o">=</span> <span class="n">_extract_location</span><span class="p">(</span><span class="n">robot_pose</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">node_list</span> <span class="o">=</span> <span class="n">new_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_of_path</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">search_start_index</span> <span class="o">=</span> <span class="n">_presearch</span><span class="p">(</span><span class="n">robot_loc</span><span class="p">,</span> <span class="n">new_path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">search_start_index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Shouldn&#39;t happen... but just in case.</span>
+            <span class="c1"># Extend the last path segment to infinity.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">search_start_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_path</span><span class="p">)</span><span class="o">-</span><span class="mi">2</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">pyswerve</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Dragon Robotics 5002.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

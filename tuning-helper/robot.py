@@ -1,6 +1,7 @@
 from ctre.cantalon import CANTalon
 import wpilib
 
+
 class Robot(wpilib.IterativeRobot):
     talon_id_set = [
         ('Front Left', 5, False),
@@ -16,7 +17,8 @@ class Robot(wpilib.IterativeRobot):
     def robotInit(self):
         self.control_stick = wpilib.Joystick(0)
         self.talons = [CANTalon(tid) for _, tid, _ in self.talon_id_set]
-        self.encoder_value_sets = [[None, None, None] for _ in self.talon_id_set]
+        self.encoder_value_sets = [
+            [None, None, None] for _ in self.talon_id_set]
         self.last_encoder_values = [None for _ in self.talon_id_set]
         self.talon_sweeping = [True for _ in self.talon_id_set]
 
@@ -78,7 +80,9 @@ class Robot(wpilib.IterativeRobot):
         active_talon.set(tgt)
 
         wpilib.SmartDashboard.putNumber('Ctrl Target', tgt)
-        wpilib.SmartDashboard.putNumber('Position', active_talon.getAnalogInRaw())
+        wpilib.SmartDashboard.putNumber(
+            'Position',
+            active_talon.getAnalogInRaw())
 
     def autonomousInit(self):
         for idx, talon in enumerate(self.talons):
@@ -144,6 +148,7 @@ class Robot(wpilib.IterativeRobot):
                     )
 
                 self.last_encoder_values[idx] = current_value
+
 
 if __name__ == "__main__":
     wpilib.run(Robot)

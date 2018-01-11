@@ -1,0 +1,14 @@
+[NetworkTables Storage 3.0]
+double "/Preferences/Back Left-max"=878
+double "/Preferences/Back Left-min"=14
+double "/Preferences/Back Left-offset"=351
+double "/Preferences/Back Right-max"=878
+double "/Preferences/Back Right-min"=9
+double "/Preferences/Back Right-offset"=84
+double "/Preferences/Front Left-max"=875
+double "/Preferences/Front Left-min"=16
+double "/Preferences/Front Left-offset"=644
+boolean "/Preferences/Front Left-steer-reversed"=false
+double "/Preferences/Front Right-max"=892
+double "/Preferences/Front Right-min"=17
+double "/Preferences/Front Right-offset"=200

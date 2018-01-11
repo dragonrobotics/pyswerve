@@ -1,0 +1,7 @@
+pure\_pursuit module
+====================
+
+.. automodule:: pure_pursuit
+    :members:
+    :undoc-members:
+    :show-inheritance:

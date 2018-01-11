@@ -1,0 +1,168 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pure_pursuit module &#8212; pyswerve 0.1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="swerve_drive module" href="swerve_drive.html" />
+    <link rel="prev" title="pyswerve" href="modules.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-pure_pursuit">
+<span id="pure-pursuit-module"></span><h1>pure_pursuit module<a class="headerlink" href="#module-pure_pursuit" title="Permalink to this headline">¶</a></h1>
+<p>A Python implementation of the Pure Pursuit controller.</p>
+<p>This module implements a basic pure pursuit controller, allowing for
+smooth, stable navigation of the robot using waypoints, as opposed to,
+say, specific timings.</p>
+<p>A reliable source of robot pose / position information is required to
+effectively use pure pursuit control. In addition, logic for converting
+computed goal points to steering / motor commands is beyond the scope
+of this module.</p>
+<dl class="class">
+<dt id="pure_pursuit.PurePursuitController">
+<em class="property">class </em><code class="descclassname">pure_pursuit.</code><code class="descname">PurePursuitController</code><span class="sig-paren">(</span><em>lookahead_dist</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pure_pursuit.html#PurePursuitController"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pure_pursuit.PurePursuitController" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3.6/library/functions.html#object" title="(in Python v3.6)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Keeps state for a Pure Pursuit Controller.</p>
+<dl class="attribute">
+<dt id="pure_pursuit.PurePursuitController.end_of_path">
+<code class="descname">end_of_path</code><em class="property"> = False</em><a class="headerlink" href="#pure_pursuit.PurePursuitController.end_of_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pure_pursuit.PurePursuitController.get_goal_point">
+<code class="descname">get_goal_point</code><span class="sig-paren">(</span><em>robot_pose</em>, <em>debug_info=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pure_pursuit.html#PurePursuitController.get_goal_point"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pure_pursuit.PurePursuitController.get_goal_point" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the next goal point, given a previously set path and the
+current robot position.</p>
+<p>This returns a point (2-vector) by default; however, if
+debug_info is True, this will also return the full
+tuple of values from <cite>_find_goal_point</cite>.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pure_pursuit.PurePursuitController.node_list">
+<code class="descname">node_list</code><em class="property"> = []</em><a class="headerlink" href="#pure_pursuit.PurePursuitController.node_list" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pure_pursuit.PurePursuitController.reached_end_of_path">
+<code class="descname">reached_end_of_path</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pure_pursuit.html#PurePursuitController.reached_end_of_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pure_pursuit.PurePursuitController.reached_end_of_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test whether the robot is approaching the end of the path,
+based on the last call to <cite>get_goal_point</cite>.</p>
+<p>Note that this does not neccesarily mean the robot actually
+_has_ reached the end of the path.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pure_pursuit.PurePursuitController.search_start_index">
+<code class="descname">search_start_index</code><em class="property"> = 0</em><a class="headerlink" href="#pure_pursuit.PurePursuitController.search_start_index" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pure_pursuit.PurePursuitController.set_path">
+<code class="descname">set_path</code><span class="sig-paren">(</span><em>new_path</em>, <em>robot_pose</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pure_pursuit.html#PurePursuitController.set_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pure_pursuit.PurePursuitController.set_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets a new path for the controller.</p>
+<p>new_path should be a list of 2-vectors (shape (2,)).
+robot_pose is the current robot pose as a 9-element vector.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">pyswerve</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">pure_pursuit module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="swerve_drive.html">swerve_drive module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="swerve_module.html">swerve_module module</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">pyswerve</a><ul>
+      <li>Previous: <a href="modules.html" title="previous chapter">pyswerve</a></li>
+      <li>Next: <a href="swerve_drive.html" title="next chapter">swerve_drive module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/pure_pursuit.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Dragon Robotics 5002.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/pure_pursuit.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

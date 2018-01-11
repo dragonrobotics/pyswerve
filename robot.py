@@ -14,15 +14,15 @@ class Robot(wpilib.IterativeRobot):
         ('Front Left', 5, 13),
     ]
 
-    chassis_length = 24.69
-    chassis_width = 22.61
+    chassis_length = 32
+    chassis_width = 28
 
     foc_enabled = False
 
     def robotInit(self):
         self.control_stick = wpilib.Joystick(0)
-        self.save_config_button = ButtonDebouncer(self.control_stick, 0)
-        self.toggle_foc_button = ButtonDebouncer(self.control_stick, 1)
+        self.save_config_button = ButtonDebouncer(self.control_stick, 1)
+        self.toggle_foc_button = ButtonDebouncer(self.control_stick, 2)
 
         self.drivetrain = SwerveDrive(
             self.chassis_length,
@@ -42,22 +42,42 @@ class Robot(wpilib.IterativeRobot):
 
     def disabledPeriodic(self):
         self.drivetrain.update_smart_dashboard()
+        wpilib.SmartDashboard.putBoolean('FOC Enabled', self.foc_enabled)
+        wpilib.SmartDashboard.putNumber('Heading', self.navx.getFusedHeading())
+        wpilib.SmartDashboard.putNumber(
+            'Accumulated Yaw',
+            self.navx.getAngle())
 
     def autonomousInit(self):
         self.drivetrain.load_config_values()
 
     def autonomousPeriodic(self):
-        self.drivetrain.drive(1, 0, 0)
+        self.drivetrain.drive(0.1, 0, 0)
         self.drivetrain.update_smart_dashboard()
+        wpilib.SmartDashboard.putBoolean('FOC Enabled', self.foc_enabled)
+        wpilib.SmartDashboard.putNumber('Heading', self.navx.getFusedHeading())
+        wpilib.SmartDashboard.putNumber(
+            'Accumulated Yaw',
+            self.navx.getAngle())
 
     def teleopInit(self):
         self.drivetrain.load_config_values()
 
     def teleopPeriodic(self):
+        wpilib.SmartDashboard.putBoolean('FOC Enabled', self.foc_enabled)
+        wpilib.SmartDashboard.putNumber('Heading', self.navx.getFusedHeading())
+        wpilib.SmartDashboard.putNumber(
+            'Accumulated Yaw',
+            self.navx.getAngle())
+
         ctrl = np.array([
             self.control_stick.getAxis(1) * -1,
-            self.control_stick.getAxis(0)
+            self.control_stick.getAxis(0) * -1
         ])
+
+        if abs(np.sqrt(np.sum(ctrl**2))) < 0.15:
+            ctrl[0] = 0
+            ctrl[1] = 0
 
         if (self.navx is not None and
                 self.navx.isConnected() and self.foc_enabled):
@@ -72,10 +92,14 @@ class Robot(wpilib.IterativeRobot):
 
             ctrl = np.squeeze(np.matmul(foc_transform, ctrl))
 
+        tw = self.control_stick.getRawAxis(4) * -1
+        if abs(tw) < 0.15:
+            tw = 0
+
         self.drivetrain.drive(
             ctrl[0],
             ctrl[1],
-            self.control_stick.getAxis(3)
+            tw
         )
 
         if self.save_config_button.get():
