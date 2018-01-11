@@ -130,25 +130,28 @@ class SwerveModule(object):
             angle_radians (number): The angle to steer towards in radians,
                 where 0 points in the chassis forward direction.
         """
-        n_rotations = math.trunc(self.steer_talon.get() / 1024)
+        n_rotations = math.trunc((self.steer_talon.get() - self.steer_offset) / self.steer_range)
         current_angle = self.get_steer_angle()
         adjusted_target = angle_radians + (n_rotations * 2 * math.pi)
 
+        local_angle = self.get_steer_angle() % (2*math.pi)
+
         # Shortest-path servoing
         should_reverse_drive = False
-        if abs(adjusted_target - current_angle) > math.pi:
-            # unwrap target angle:
-            if adjusted_target > current_angle:
-                adjusted_target -= 2 * math.pi
-            else:
-                adjusted_target += 2 * math.pi
-        elif abs(adjusted_target - current_angle) >= math.pi / 2:
+        if abs(angle_radians - local_angle) - (math.pi / 2) > 0.0005:
             # shortest path is to move to opposite angle and reverse drive dir
             if adjusted_target > current_angle:
                 adjusted_target -= math.pi
             else:  # angle_radians < local_angle
                 adjusted_target += math.pi
             should_reverse_drive = True
+
+        if abs(adjusted_target - current_angle) - math.pi > 0.0005:
+            # unwrap target angle:
+            if adjusted_target > current_angle:
+                adjusted_target -= 2 * math.pi
+            else:
+                adjusted_target += 2 * math.pi
 
         self.steer_target = adjusted_target
 
@@ -201,14 +204,15 @@ class SwerveModule(object):
         from the steer Talon, and the current target steer position.
         """
         wpilib.SmartDashboard.putNumber(
-            self.name+' Position', self.steer_talon.get())
+            self.name+' Position',
+            (self.steer_talon.get() - self.steer_offset) * 180 / 512)
 
         wpilib.SmartDashboard.putNumber(
             self.name+' ADC', self.steer_talon.getAnalogInRaw())
 
         wpilib.SmartDashboard.putNumber(
             self.name+' Target',
-            self.steer_target_native)
+            self.steer_target * 180 / math.pi)
 
         wpilib.SmartDashboard.putNumber(
             self.name+' Steer Error',
