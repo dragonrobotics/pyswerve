@@ -136,22 +136,24 @@ class SwerveModule(object):
 
         local_angle = self.get_steer_angle() % (2*math.pi)
 
+        # Perform angle unwrapping for target angles.
+        # This prevents issues resulting from discontinuities in input angle
+        # ranges.
+        if abs(adjusted_target - current_angle) - math.pi > 0.0005:
+            if adjusted_target > current_angle:
+                adjusted_target -= 2 * math.pi
+            else:
+                adjusted_target += 2 * math.pi
+
         # Shortest-path servoing
         should_reverse_drive = False
-        if abs(angle_radians - local_angle) - (math.pi / 2) > 0.0005:
+        if abs(adjusted_target - current_angle) - (math.pi / 2) > 0.0005:
             # shortest path is to move to opposite angle and reverse drive dir
             if adjusted_target > current_angle:
                 adjusted_target -= math.pi
             else:  # angle_radians < local_angle
                 adjusted_target += math.pi
             should_reverse_drive = True
-
-        if abs(adjusted_target - current_angle) - math.pi > 0.0005:
-            # unwrap target angle:
-            if adjusted_target > current_angle:
-                adjusted_target -= 2 * math.pi
-            else:
-                adjusted_target += 2 * math.pi
 
         self.steer_target = adjusted_target
 
