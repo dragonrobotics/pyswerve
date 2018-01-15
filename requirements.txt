@@ -1,5 +1,9 @@
-pyfrc<2018
+robotpy-hal-sim<2018
+robotpy-wpilib-utilities<2018
 robotpy-ctre<2018
+pynetworktables<2018
+wpilib<2018
+pyfrc<2018
 numpy
 flake8
 sphinx
