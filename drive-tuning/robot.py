@@ -2,6 +2,7 @@ import wpilib
 from ctre.cantalon import CANTalon
 import numpy as np
 
+
 class Robot(wpilib.IterativeRobot):
     active_id = 2
     target = 500
@@ -69,7 +70,6 @@ class Robot(wpilib.IterativeRobot):
 
         self.drive_talon.set(self.target)
         self.logSDData()
-
 
 
 if __name__ == "__main__":

@@ -138,7 +138,10 @@ class SwerveModule(object):
             angle_radians (number): The angle to steer towards in radians,
                 where 0 points in the chassis forward direction.
         """
-        n_rotations = math.trunc((self.steer_talon.get() - self.steer_offset) / self.steer_range)
+        n_rotations = math.trunc(
+            (self.steer_talon.get() - self.steer_offset)
+            / self.steer_range)
+
         current_angle = self.get_steer_angle()
         adjusted_target = angle_radians + (n_rotations * 2 * math.pi)
 
