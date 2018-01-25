@@ -1,6 +1,7 @@
 """Implements common logic for swerve modules.
 """
 from ctre.cantalon import CANTalon
+import numpy as np
 import wpilib
 import math
 
@@ -46,10 +47,17 @@ class SwerveModule(object):
         self.steer_talon.setFeedbackDevice(CANTalon.FeedbackDevice.AnalogEncoder)  # noqa: E501
         self.steer_talon.setProfile(0)
 
+        self.drive_talon.changeControlMode(CANTalon.ControlMode.Position)
+        self.drive_talon.setFeedbackDevice(CANTalon.FeedbackDevice.QuadEncoder)
+        self.drive_talon.setEncPosition(0)
+
         self.name = name
         self.steer_target = 0
         self.steer_target_native = 0
         self.drive_temp_flipped = False
+        self.max_speed = 470  # ticks / 100ms
+        self.max_observed_speed = 0
+        self.raw_drive_speeds = []
 
         self.load_config_values()
 
@@ -64,6 +72,8 @@ class SwerveModule(object):
         self.steer_talon.setProfile(0)
 
         preferences = wpilib.Preferences.getInstance()
+
+        self.max_speed = preferences.getFloat('Max Speed', 470)
 
         self.steer_offset = preferences.getFloat(self.name+'-offset', 0)
         if _apply_range_hack:
@@ -163,7 +173,7 @@ class SwerveModule(object):
 
         self.drive_temp_flipped = should_reverse_drive
 
-    def set_drive_speed(self, percent_speed):
+    def set_drive_speed(self, speed, direct=False):
         """
         Drive the swerve module wheels at a given percentage of
         maximum power or speed.
@@ -174,12 +184,35 @@ class SwerveModule(object):
                 reverse.
         """
         if self.drive_reversed:
-            percent_speed *= -1
+            speed *= -1
 
         if self.drive_temp_flipped:
-            percent_speed *= -1
+            speed *= -1
 
-        self.drive_talon.set(percent_speed)
+        self.drive_talon.changeControlMode(CANTalon.ControlMode.Speed)
+        self.drive_talon.reverseSensor(False)
+        self.drive_talon.setProfile(1)
+        self.drive_talon.setF(1023 / self.max_speed)
+
+        if direct:
+            self.drive_talon.set(speed)
+        else:
+            self.drive_talon.set(speed * self.max_speed)
+
+    def set_drive_distance(self, ticks):
+        if self.drive_reversed:
+            ticks *= -1
+
+        if self.drive_temp_flipped:
+            ticks *= -1
+
+        self.drive_talon.changeControlMode(CANTalon.ControlMode.Position)
+        self.drive_talon.reverseSensor(False)
+        self.drive_talon.setProfile(0)
+        self.drive_talon.set(ticks)
+
+    def reset_drive_position(self):
+        self.drive_talon.setEncPosition(0)
 
     def apply_control_values(self, angle_radians, percent_speed):
         """
@@ -219,3 +252,30 @@ class SwerveModule(object):
         wpilib.SmartDashboard.putNumber(
             self.name+' Steer Error',
             self.steer_talon.getClosedLoopError())
+
+        wpilib.SmartDashboard.putNumber(
+            self.name+' Drive Error',
+            self.drive_talon.getClosedLoopError())
+
+        wpilib.SmartDashboard.putNumber(
+            self.name+' Drive Ticks',
+            self.drive_talon.getEncPosition())
+
+        self.raw_drive_speeds.append(self.drive_talon.getEncVelocity())
+        if len(self.raw_drive_speeds) > 50:
+            self.raw_drive_speeds = self.raw_drive_speeds[-50:]
+
+        cur_drive_spd = np.mean(self.raw_drive_speeds)
+
+        if abs(cur_drive_spd) > abs(self.max_observed_speed):
+            self.max_observed_speed = cur_drive_spd
+
+        wpilib.SmartDashboard.putNumber(
+            self.name+' Drive Velocity',
+            cur_drive_spd
+        )
+
+        wpilib.SmartDashboard.putNumber(
+            self.name+' Drive Velocity (Max)',
+            self.max_observed_speed
+        )
