@@ -92,7 +92,6 @@ class Robot(wpilib.IterativeRobot):
             'Accumulated Yaw',
             self.navx.getAngle())
 
-
         ctrl = np.array([
             self.control_stick.getAxis(1) * -1,
             self.control_stick.getAxis(0) * -1

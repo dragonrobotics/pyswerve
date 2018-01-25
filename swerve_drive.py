@@ -94,6 +94,7 @@ class SwerveDrive(object):
     def turn_to_angle(self, navx, target_angle):
         hdg = navx.getFusedHeading() * (math.pi / 180)
 
+        prefs = wpilib.Preferences.getInstance()
         if prefs.getBoolean('Reverse Heading Direction', False):
             hdg *= -1
 
