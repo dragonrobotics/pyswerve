@@ -140,7 +140,7 @@ class SwerveDrive(object):
 
     def get_module_distances(self):
         return [
-            abs(module.drive_talon.getEncPosition())
+            abs(module.drive_talon.getQuadraturePosition())
             for module in self.modules
         ]
 
