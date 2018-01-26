@@ -288,7 +288,8 @@ class SwerveModule(object):
             self.max_observed_speed
         )
 
-        wpilib.SmartDashboard.putNumber(
-            self.name+' Drive Percent Output',
-            self.drive_talon.getMotorOutputPercent()
-        )
+        if wpilib.RobotBase.isReal():
+            wpilib.SmartDashboard.putNumber(
+                self.name+' Drive Percent Output',
+                self.drive_talon.getMotorOutputPercent()
+            )
