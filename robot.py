@@ -72,9 +72,16 @@ class Robot(wpilib.IterativeRobot):
         self.drivetrain.update_smart_dashboard()
         self.turn_complete = False
 
-        #self.navx.reset()
-
     def autonomousSpeedTesting(self):
+        prefs = wpilib.Preferences.getInstance()
+        drive_speed = prefs.getInt('Auto Drive Speed', 100)
+        wait_time = prefs.getFloat('Auto Wait Time', 1.0)
+        acc_time = prefs.getFloat('Auto Acceleration Time', 2.0)
+        target_in = prefs.getFloat('Auto Distance', 120.0)
+
+        avg_dist = np.mean(self.drivetrain.get_module_distances())
+        target = target_in * ((80 * 6.67) / (4*math.pi))
+
         countdown_time = math.ceil(wait_time - self.auto_timer.get())
         if self.last_countdown_time > countdown_time and countdown_time >= 0:
             if countdown_time > 0:
@@ -104,13 +111,6 @@ class Robot(wpilib.IterativeRobot):
             )
 
     def autonomousPeriodic(self):
-        prefs = wpilib.Preferences.getInstance()
-        drive_speed = prefs.getInt('Auto Drive Speed', 100)
-        wait_time = prefs.getFloat('Auto Wait Time', 1.0)
-        acc_time = prefs.getFloat('Auto Acceleration Time', 2.0)
-        target_in = prefs.getFloat('Auto Distance', 120.0)
-
-        target = target_in * ((80 * 6.67) / (4*math.pi))
         avg_dist = np.mean(self.drivetrain.get_module_distances())
 
         right_speed = np.mean(np.abs([
