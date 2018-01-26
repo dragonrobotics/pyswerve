@@ -14,6 +14,7 @@ _apply_range_hack = False
 _acceptable_steer_err_degrees = 1  # degrees
 _acceptable_steer_err = _acceptable_steer_err_degrees * (512 / 180)
 
+
 class SwerveModule(object):
     def __init__(self, name, steer_id, drive_id):
         """
@@ -78,7 +79,10 @@ class SwerveModule(object):
 
         preferences = wpilib.Preferences.getInstance()
 
-        self.max_speed = preferences.getFloat(self.name+'-Max Wheel Speed', 370)
+        self.max_speed = preferences.getFloat(
+            self.name+'-Max Wheel Speed',
+            370
+        )
 
         self.steer_offset = preferences.getFloat(self.name+'-offset', 0)
         if _apply_range_hack:
