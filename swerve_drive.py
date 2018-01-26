@@ -92,16 +92,47 @@ class SwerveDrive(object):
             module.apply_control_values(angle, speed)
 
     def turn_to_angle(self, navx, target_angle):
-        hdg = navx.getFusedHeading() * (math.pi / 180)
+        prefs = wpilib.Preferences.getInstance()
+
+        min_wheel_speed = prefs.getFloat('Turn Min Wheel Speed', 25)
+        max_wheel_speed = prefs.getFloat('Turn Max Wheel Speed', 100)
+        kP = prefs.getFloat('Turn kP', 50/math.pi)
+        kD = prefs.getFloat('Turn kD', 5)
+        tol = prefs.getFloat('Turn Error Tolerance', 1)
+
+        hdg = math.radians(navx.getAngle())
+        n_rotations = math.trunc(hdg / (2*math.pi))
+        rate = navx.getRate() * (math.pi / 180)
+
+        target_angle += (n_rotations * 2 * math.pi)
 
         prefs = wpilib.Preferences.getInstance()
         if prefs.getBoolean('Reverse Heading Direction', False):
             hdg *= -1
+            target_angle += math.pi
 
-        if math.degrees(abs(hdg - target_angle)) < 5:
+        err = target_angle - hdg
+
+        if err < 0:
+            rate *= -1
+
+        spd = (kP * err) - (kD * rate)
+        if abs(spd) < min_wheel_speed:
+            if spd < 0:
+                spd = -min_wheel_speed
+            else:
+                spd = min_wheel_speed
+
+        if abs(spd) > max_wheel_speed:
+            if spd < 0:
+                spd = -max_wheel_speed
+            else:
+                spd = max_wheel_speed
+
+        if math.degrees(abs(err)) < tol:
             for module in self.modules:
                 module.set_drive_speed(0, True)
-            return
+            return True
 
         a = -1 * (self.length / self.radius)
         b = (self.length / self.radius)
@@ -113,14 +144,11 @@ class SwerveDrive(object):
 
         angles = np.arctan2(t1, t2)
 
-        drv_spd = self.max_speed / 4
-
-        if hdg < target_angle:
-            drv_spd *= -1
-
         for module, angle in zip(self.modules, angles):
             module.set_steer_angle(angle)
-            module.set_drive_speed(drv_spd, True)
+            module.set_drive_speed(spd, True)
+
+        return False
 
     def set_all_module_angles(self, angle_rad):
         for module in self.modules:

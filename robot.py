@@ -70,6 +70,38 @@ class Robot(wpilib.IterativeRobot):
             module.max_observed_speed = 0
 
         self.drivetrain.update_smart_dashboard()
+        self.turn_complete = False
+
+        #self.navx.reset()
+
+    def autonomousSpeedTesting(self):
+        countdown_time = math.ceil(wait_time - self.auto_timer.get())
+        if self.last_countdown_time > countdown_time and countdown_time >= 0:
+            if countdown_time > 0:
+                print("{}...".format(countdown_time))
+            else:
+                print("Go!")
+
+        self.last_countdown_time = countdown_time
+
+        self.drivetrain.set_all_module_angles(0)
+        if self.auto_timer.get() > wait_time:
+            driving_time = self.auto_timer.get() - wait_time
+            if avg_dist < target:
+                cur_speed = drive_speed
+                if driving_time <= acc_time:
+                    cur_speed *= (driving_time / acc_time)
+
+                self.drivetrain.set_all_module_speeds(cur_speed, direct=True)
+            else:
+                self.drivetrain.set_all_module_speeds(0, direct=True)
+
+    def autonomousTurnTesting(self):
+        if not self.turn_complete:
+            self.turn_complete = self.drivetrain.turn_to_angle(
+                self.navx,
+                math.radians(90)
+            )
 
     def autonomousPeriodic(self):
         prefs = wpilib.Preferences.getInstance()
@@ -102,26 +134,7 @@ class Robot(wpilib.IterativeRobot):
         if abs(self.max_side_speed_diff) < abs(side_speed_diff):
             self.max_side_speed_diff = side_speed_diff
 
-        countdown_time = math.ceil(wait_time - self.auto_timer.get())
-        if self.last_countdown_time > countdown_time and countdown_time >= 0:
-            if countdown_time > 0:
-                print("{}...".format(countdown_time))
-            else:
-                print("Go!")
-
-        self.last_countdown_time = countdown_time
-
-        self.drivetrain.set_all_module_angles(0)
-        if self.auto_timer.get() > wait_time:
-            driving_time = self.auto_timer.get() - wait_time
-            if avg_dist < target:
-                cur_speed = drive_speed
-                if driving_time <= acc_time:
-                    cur_speed *= (driving_time / acc_time)
-
-                self.drivetrain.set_all_module_speeds(cur_speed, direct=True)
-            else:
-                self.drivetrain.set_all_module_speeds(0, direct=True)
+        self.autonomousTurnTesting()
 
         wpilib.SmartDashboard.putNumber('Left Side Speed', left_speed)
         wpilib.SmartDashboard.putNumber('Right Side Speed', right_speed)
