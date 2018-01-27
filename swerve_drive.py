@@ -89,7 +89,7 @@ class SwerveDrive(object):
 
         # back-right, back-left, front-right, front-left?
         for module, angle, speed in zip(self.modules, angles, speeds):
-            module.apply_control_values(angle, speed)
+            module.apply_control_values(angle, speed * max_wheel_speed, True)
 
     def turn_to_angle(self, navx, target_angle):
         prefs = wpilib.Preferences.getInstance()

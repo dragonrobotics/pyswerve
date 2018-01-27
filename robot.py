@@ -24,6 +24,8 @@ class Robot(wpilib.IterativeRobot):
         self.save_config_button = ButtonDebouncer(self.control_stick, 1)
         self.toggle_foc_button = ButtonDebouncer(self.control_stick, 2)
         self.zero_yaw_button = ButtonDebouncer(self.control_stick, 3)
+        self.low_speed_button = ButtonDebouncer(self.control_stick, 4)
+        self.high_speed_button = ButtonDebouncer(self.control_stick, 5)
 
         self.drivetrain = SwerveDrive(
             self.chassis_length,
@@ -169,6 +171,7 @@ class Robot(wpilib.IterativeRobot):
 
     def teleopInit(self):
         self.drivetrain.load_config_values()
+        self.last_applied_ctrl = np.array([0, 0, 0])
 
     def teleopPeriodic(self):
         wpilib.SmartDashboard.putBoolean('FOC Enabled', self.foc_enabled)
@@ -188,9 +191,12 @@ class Robot(wpilib.IterativeRobot):
             ctrl[0] = math.cos(pov)
             ctrl[1] = math.sin(pov)
 
+        linear_ctrl_active = False
         if abs(np.sqrt(np.sum(ctrl**2))) < 0.15:
             ctrl[0] = 0
             ctrl[1] = 0
+        else:
+            linear_ctrl_active = True
 
         prefs = wpilib.Preferences.getInstance()
         teleop_max_speed = prefs.getFloat('Teleop Max Speed', 370)
@@ -211,16 +217,37 @@ class Robot(wpilib.IterativeRobot):
 
             ctrl = np.squeeze(np.matmul(foc_transform, ctrl))
 
+        rotation_ctrl_active = True
         tw = self.control_stick.getRawAxis(4) * -1
-        if abs(tw) < 0.05:
+        if abs(tw) < 0.07:
+            rotation_ctrl_active = False
             tw = 0
+        else:
+            tw /= 2
 
-        self.drivetrain.drive(
-            ctrl[0],
-            ctrl[1],
-            tw / 2,
-            teleop_max_speed
-        )
+        if linear_ctrl_active or rotation_ctrl_active:
+            self.last_applied_ctrl = np.concatenate([ctrl, [tw]])
+
+            speed_coefficient = 0.75
+            if self.low_speed_button.get():
+                speed_coefficient = 0.25
+            elif self.high_speed_button.get():
+                speed_coefficient = 1
+
+            self.drivetrain.drive(
+                ctrl[0],
+                ctrl[1],
+                tw,
+                max_wheel_speed=teleop_max_speed*speed_coefficient
+            )
+        else:
+            # maintain wheels at last position but don't drive.
+            self.drivetrain.drive(
+                self.last_applied_ctrl[0],
+                self.last_applied_ctrl[1],
+                self.last_applied_ctrl[2],
+                max_wheel_speed=0
+            )
 
         if self.save_config_button.get():
             self.drivetrain.save_config_values()
