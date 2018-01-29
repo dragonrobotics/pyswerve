@@ -58,20 +58,92 @@ class Robot(wpilib.IterativeRobot):
         self.auto_timer.start()
         self.auto_start_time = None
 
+        self.max_left_speed = 0
+        self.max_right_speed = 0
+        self.max_side_speed_diff = 0
+        self.last_countdown_time = 999
+
         self.drivetrain.reset_drive_position()
         self.drivetrain.set_all_module_angles(0)
+
+        for module in self.drivetrain.modules:
+            module.max_observed_speed = 0
 
         self.drivetrain.update_smart_dashboard()
 
     def autonomousPeriodic(self):
-        target = 120 * ((80 * 6.67) / (4*math.pi))
+        prefs = wpilib.Preferences.getInstance()
+        drive_speed = prefs.getInt('Auto Drive Speed', 100)
+        wait_time = prefs.getFloat('Auto Wait Time', 1.0)
+        acc_time = prefs.getFloat('Auto Acceleration Time', 2.0)
+        target_in = prefs.getFloat('Auto Distance', 120.0)
+
+        target = target_in * ((80 * 6.67) / (4*math.pi))
         avg_dist = np.mean(self.drivetrain.get_module_distances())
+
+        right_speed = np.mean(np.abs([
+            self.drivetrain.modules[0].cur_drive_spd,
+            self.drivetrain.modules[2].cur_drive_spd
+        ]))
+
+        left_speed = np.mean(np.abs([
+            self.drivetrain.modules[1].cur_drive_spd,
+            self.drivetrain.modules[3].cur_drive_spd
+        ]))
+
+        side_speed_diff = abs(left_speed) - abs(right_speed)
+
+        if abs(self.max_left_speed) < abs(left_speed):
+            self.max_left_speed = left_speed
+
+        if abs(self.max_right_speed) < abs(right_speed):
+            self.max_right_speed = right_speed
+
+        if abs(self.max_side_speed_diff) < abs(side_speed_diff):
+            self.max_side_speed_diff = side_speed_diff
+
+        countdown_time = math.ceil(wait_time - self.auto_timer.get())
+        if self.last_countdown_time > countdown_time and countdown_time >= 0:
+            if countdown_time > 0:
+                print("{}...".format(countdown_time))
+            else:
+                print("Go!")
+
+        self.last_countdown_time = countdown_time
+
         self.drivetrain.set_all_module_angles(0)
-        if self.auto_timer.get() > 1:
+        if self.auto_timer.get() > wait_time:
+            driving_time = self.auto_timer.get() - wait_time
             if avg_dist < target:
-                self.drivetrain.set_all_module_speeds(100, direct=True)
+                cur_speed = drive_speed
+                if driving_time <= acc_time:
+                    cur_speed *= (driving_time / acc_time)
+
+                self.drivetrain.set_all_module_speeds(cur_speed, direct=True)
             else:
                 self.drivetrain.set_all_module_speeds(0, direct=True)
+
+        wpilib.SmartDashboard.putNumber('Left Side Speed', left_speed)
+        wpilib.SmartDashboard.putNumber('Right Side Speed', right_speed)
+        wpilib.SmartDashboard.putNumber(
+            'Side Speed Diff',
+            side_speed_diff
+        )
+
+        wpilib.SmartDashboard.putNumber(
+            'Max Left Side Speed',
+            self.max_left_speed
+        )
+
+        wpilib.SmartDashboard.putNumber(
+            'Max Right Side Speed',
+            self.max_right_speed
+        )
+
+        wpilib.SmartDashboard.putNumber(
+            'Max Side Speed Diff',
+            self.max_side_speed_diff
+        )
 
         wpilib.SmartDashboard.putNumber('Avg Dist', avg_dist)
         wpilib.SmartDashboard.putBoolean('FOC Enabled', self.foc_enabled)
@@ -93,8 +165,8 @@ class Robot(wpilib.IterativeRobot):
             self.navx.getAngle())
 
         ctrl = np.array([
-            self.control_stick.getAxis(1) * -1,
-            self.control_stick.getAxis(0) * -1
+            self.control_stick.getRawAxis(1) * -1,
+            self.control_stick.getRawAxis(0) * -1
         ])
 
         pov = self.control_stick.getPOV()
@@ -108,6 +180,7 @@ class Robot(wpilib.IterativeRobot):
             ctrl[1] = 0
 
         prefs = wpilib.Preferences.getInstance()
+        teleop_max_speed = prefs.getFloat('Teleop Max Speed', 370)
 
         if (self.navx is not None and
                 self.navx.isConnected() and self.foc_enabled):
@@ -132,7 +205,8 @@ class Robot(wpilib.IterativeRobot):
         self.drivetrain.drive(
             ctrl[0],
             ctrl[1],
-            tw / 2
+            tw / 2,
+            teleop_max_speed
         )
 
         if self.save_config_button.get():
