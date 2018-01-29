@@ -57,7 +57,7 @@ class SwerveDrive(object):
         self.sd_update_timer = wpilib.Timer()
         self.sd_update_timer.start()
 
-    def drive(self, forward, strafe, rotate_cw):
+    def drive(self, forward, strafe, rotate_cw, max_wheel_speed=370):
         """
         Compute and apply module angles and speeds to achieve a given
         linear / angular velocity.
@@ -169,3 +169,12 @@ class SwerveDrive(object):
         """
         for module in self.modules:
             module.update_smart_dashboard()
+
+        overall_max_speed = np.amin(np.abs(
+            [module.max_observed_speed for module in self.modules]
+        ))
+
+        wpilib.SmartDashboard.putNumber(
+            'Overall Max Observed Speed',
+            overall_max_speed
+        )
