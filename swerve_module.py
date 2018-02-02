@@ -220,7 +220,7 @@ class SwerveModule(object):
     def reset_drive_position(self):
         self.drive_talon.setQuadraturePosition(0, 0)
 
-    def apply_control_values(self, angle_radians, percent_speed):
+    def apply_control_values(self, angle_radians, speed, direct=False):
         """
         Set a steering angle and a drive speed simultaneously.
 
@@ -232,7 +232,7 @@ class SwerveModule(object):
             :func:`~set_drive_speed` and :func:`~set_steer_angle`
         """
         self.set_steer_angle(angle_radians)
-        self.set_drive_speed(percent_speed)
+        self.set_drive_speed(speed, direct)
 
     def update_smart_dashboard(self):
         """
