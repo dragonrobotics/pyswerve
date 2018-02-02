@@ -8,14 +8,14 @@ import numpy as np
 
 class Robot(wpilib.IterativeRobot):
     swerve_config = [
-        ('Back Right', 15, 12),
-        ('Back Left', 4, 10),
-        ('Front Right', 1, 2),
-        ('Front Left', 5, 13),
+        ('Back Right', 11, 10),
+        ('Back Left', 9, 8),
+        ('Front Right', 7, 6),
+        ('Front Left', 5, 4),
     ]
 
-    chassis_length = 32
-    chassis_width = 28
+    chassis_length = 24
+    chassis_width = 27
 
     foc_enabled = False
 
