@@ -33,6 +33,8 @@ class Robot(wpilib.IterativeRobot):
             self.swerve_config
         )
 
+        wpilib.CameraServer.launch('driver_vision.py:main')
+
         try:
             self.navx = AHRS.create_spi()
             self.navx.reset()
@@ -235,10 +237,10 @@ class Robot(wpilib.IterativeRobot):
                 speed_coefficient = 1
 
             self.drivetrain.drive(
-                ctrl[0],
-                ctrl[1],
+                ctrl[0] * speed_coefficient,
+                ctrl[1] * speed_coefficient,
                 tw,
-                max_wheel_speed=teleop_max_speed*speed_coefficient
+                max_wheel_speed=teleop_max_speed
             )
         else:
             # maintain wheels at last position but don't drive.
